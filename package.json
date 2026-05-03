@@ -1,0 +1,33 @@
+{
+  "name": "hermes-war-room",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.104",
+    "@iconify-json/simple-icons": "^1.2.80",
+    "@nuxt/ui": "^4.7.0",
+    "@nuxtjs/i18n": "^10.3.0",
+    "@types/dompurify": "^3.2.0",
+    "@zed-industries/agent-client-protocol": "^0.4.5",
+    "dompurify": "^3.4.2",
+    "marked": "^18.0.3",
+    "nuxt": "^4.4.2",
+    "tailwindcss": "^4.2.4",
+    "yaml": "^2.8.4"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.15.2",
+    "eslint": "^10.2.1",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.2.7"
+  },
+  "packageManager": "pnpm@10.33.2"
+}

@@ -1,0 +1,334 @@
+{
+  "app": {
+    "title": "Sala de Guerra de Orquestación de Hermes",
+    "description": "Capa de orquestación visual para el sistema de delegación multi-agente de Hermes."
+  },
+  "nav": {
+    "warRoom": "Sala de Guerra de Orquestación",
+    "team": "El Equipo",
+    "missions": "Misiones"
+  },
+  "common": {
+    "rescan": "Reescanear",
+    "cancel": "Cancelar",
+    "default": "predeterminado",
+    "language": "Idioma",
+    "manage": "Gestionar",
+    "done": "Listo"
+  },
+  "warRoom": {
+    "title": "Sala de Guerra de Orquestación",
+    "errorTitle": "No se pudieron cargar los perfiles",
+    "empty": "No se encontraron perfiles de Hermes en {dir}.",
+    "operativesCount": "nadie operativo | 1 operativo | {count} operativos",
+    "stationLabel": "Puesto {num}",
+    "operationsFloor": "Sala de Operaciones",
+    "detail": {
+      "title": "Expediente del operativo",
+      "currentTask": "Tarea actual",
+      "noTask": "Sin tarea activa — en espera.",
+      "delegatedBy": "Delegada por",
+      "heartbeat": "Último latido hace {ago}",
+      "live": "En vivo",
+      "started": "Iniciada {time}",
+      "lastSteps": "Pasos recientes",
+      "noSteps": "Sin actividad capturada todavía.",
+      "missionThread": "Hilo de misión",
+      "noMission": "Sin misión en curso.",
+      "subtasks": "Subtareas",
+      "noSubtasks": "Sin subtareas adjuntas.",
+      "taskFeed": "Actividad de la tarea",
+      "taskFeedLoading": "Cargando conversación…",
+      "taskFeedNotStarted": "El worker aún no ha arrancado — no hay log file en disco.",
+      "taskFeedNoSession": "Worker arrancado pero el session ID aún no se ha registrado en el log.",
+      "taskFeedEmpty": "Aún no hay mensajes registrados.",
+      "taskFeedReasoning": "Razonamiento",
+      "taskFeedTotalsTitle": "Entrada: {input} tokens · Salida: {output} tokens"
+    },
+    "history": {
+      "title": "Archivo de misiones",
+      "subtitle": "Misiones pasadas, más recientes arriba.",
+      "empty": "Aún no hay misiones.",
+      "open": "Abiertas",
+      "archived": "Archivadas",
+      "all": "Todas",
+      "messageCount": "sin mensajes | 1 mensaje | {count} mensajes",
+      "createdAt": "Iniciada {when}",
+      "updatedAt": "Última actividad {when}",
+      "loadFailed": "No se pudieron cargar las misiones",
+      "page": "Página {current} de {total}",
+      "prev": "Anterior",
+      "next": "Siguiente"
+    }
+  },
+  "mission": {
+    "title": "Misión",
+    "send": "Asignar",
+    "sending": "Asignando…",
+    "thinking": "{orch} está pensando…",
+    "newMission": "Nueva misión",
+    "archived": "Misión archivada",
+    "failure": "No se pudo contactar con el orquestador",
+    "orchestrator": "Orquestador",
+    "dispatcherWarning": "No se detecta dispatcher. Ejecuta `hermes gateway start` para que los agentes recojan tareas.",
+    "connectionLost": "Stream interrumpido. Reconectando…",
+    "idle": "En espera",
+    "empty": {
+      "placeholder": "Describe la misión para {orch}…"
+    },
+    "input": {
+      "followUp": "Responde o ajusta la misión…"
+    },
+    "task": {
+      "running": "Trabajando en",
+      "queued": "En cola",
+      "blocked": "Bloqueada",
+      "thinking": "Pensando…"
+    },
+    "tabs": {
+      "chat": "Chat",
+      "board": "Tablero"
+    },
+    "board": {
+      "empty": "Sin tareas aquí.",
+      "boardEmpty": "El tablero está vacío — asigna una misión para empezar.",
+      "col": {
+        "todo": "Pendientes",
+        "ready": "Listas",
+        "running": "En curso",
+        "blocked": "Bloqueadas"
+      },
+      "started": "empezó hace {ago}",
+      "waiting": "esperando {ago}"
+    },
+    "detail": {
+      "title": "Expediente del operativo",
+      "currentTask": "Tarea actual",
+      "noTask": "Sin tarea activa.",
+      "subtasks": "Tareas delegadas",
+      "noSubtasks": "Sin delegaciones pendientes.",
+      "delegatedBy": "Delegado por",
+      "started": "Iniciada {time}",
+      "heartbeat": "Heartbeat hace {ago}s",
+      "openMission": "Abrir misión",
+      "viewKanban": "Ver en kanban",
+      "lastSteps": "Actividad reciente",
+      "noSteps": "Sin actividad reciente.",
+      "missionThread": "Hilo de la misión",
+      "noMission": "Sin misión activa para este operativo.",
+      "live": "En directo"
+    }
+  },
+  "team": {
+    "title": "El Equipo",
+    "errorTitle": "No se pudieron cargar los perfiles",
+    "empty": "No se encontraron perfiles de Hermes en {dir}.",
+    "hire": "Contratar"
+  },
+  "hire": {
+    "title": "Alta de operativo",
+    "subtitle": "Elige un preset, edita el expediente, despliega.",
+    "presetSection": "Rol",
+    "presetHint": "Cada preset rellena identidad, reglas, herramientas y skills. Puedes ajustar todo antes de contratar.",
+    "briefingSection": "Briefing",
+    "capabilitiesSection": "Capacidades",
+    "nameLabel": "Slug del perfil",
+    "namePlaceholder": "ej. investigador",
+    "nameHint": "Solo minúsculas y números — se usa como assignee en kanban.",
+    "cloneLabel": "Clonar desde",
+    "clonePlaceholder": "Empezar limpio",
+    "cloneHint": "Opcional: hereda config.yaml + .env de un perfil existente. La identidad de abajo sobrescribe su SOUL.md.",
+    "noteAfterCreate": "Los servidores MCP y la auth del proveedor se configuran después de crear el perfil.",
+    "submit": "Desplegar",
+    "submitting": "Desplegando…",
+    "success": "{name} desplegado.",
+    "failure": "No se pudo desplegar el perfil"
+  },
+  "presets": {
+    "orchestrator": {
+      "title": "Orquestador",
+      "tagline": "Necesitas despacho, enrutado, detección de drift y escalado."
+    },
+    "builder": {
+      "title": "Constructor",
+      "tagline": "Necesitas código de producto enviado con tests y prueba de build."
+    },
+    "reviewer": {
+      "title": "Revisor",
+      "tagline": "Necesitas revisión byte-verificada y listeza para merge."
+    },
+    "triage": {
+      "title": "Triaje",
+      "tagline": "Necesitas issues y PRs puntuados, reproducidos, parcheados o preparados."
+    },
+    "lab": {
+      "title": "Laboratorio",
+      "tagline": "Necesitas experimentos aislados o benchmarking de modelos locales."
+    },
+    "fetcher": {
+      "title": "Obtenedor de datos",
+      "tagline": "Necesitas extraer información pública de la web — búsqueda, scraping, extracción estructurada. Sin análisis."
+    },
+    "sage": {
+      "title": "Sabio",
+      "tagline": "Necesitas investigación, síntesis, scripts o copy de lanzamiento."
+    },
+    "scribe": {
+      "title": "Escriba",
+      "tagline": "Necesitas docs, specs, handoffs, higiene de skills, curaduría de memoria."
+    },
+    "foundation": {
+      "title": "Cimientos",
+      "tagline": "Necesitas runtime, reparación, infra, salud o trabajo de ciclo de vida."
+    },
+    "qa": {
+      "title": "QA",
+      "tagline": "Necesitas regresión, smoke, verificación esperado-vs-real."
+    },
+    "mirror": {
+      "title": "Espejo de integraciones",
+      "tagline": "Necesitas sync upstream, integraciones o packs de assets."
+    },
+    "custom": {
+      "title": "Personalizado",
+      "tagline": "Estás creando un rol que no encaja con los presets existentes."
+    }
+  },
+  "skills": {
+    "title": "Habilidades",
+    "loading": "Cargando habilidades…",
+    "loadFailed": "No se pudieron cargar las habilidades",
+    "empty": "No hay habilidades disponibles.",
+    "search": "Buscar habilidades…",
+    "selectAll": "Habilitar todas",
+    "selectNone": "Deshabilitar todas",
+    "selected": "{count} de {total} habilitadas",
+    "uncategorized": "Otras",
+    "sourceBuiltin": "Integrada",
+    "sourceGlobal": "Global",
+    "sourceProfile": "Local"
+  },
+  "tools": {
+    "title": "Herramientas",
+    "loading": "Cargando herramientas…",
+    "loadFailed": "No se pudieron cargar las herramientas",
+    "empty": "No hay herramientas disponibles.",
+    "search": "Buscar herramientas…",
+    "selectAll": "Habilitar todas",
+    "selectNone": "Deshabilitar todas",
+    "selected": "{count} de {total} habilitadas"
+  },
+  "soul": {
+    "title": "Identidad",
+    "hint": "Markdown libre que se guarda en SOUL.md dentro del perfil. Define quién es el agente y qué hace.",
+    "placeholder": "# Quién eres\n\n_No eres un chatbot. Estás convirtiéndote en alguien._\n\n¿Quién soy?\n\n- **Nombre:**\n- **Rol:**\n- **Vibra:**",
+    "loadFailed": "No se pudo cargar SOUL.md"
+  },
+  "mcp": {
+    "title": "Servidores MCP",
+    "hint": "Fuentes remotas de herramientas conectadas a este perfil. Los que fallan ralentizan el cold start (3 reintentos, ~7s perdidos) — quita los que este perfil no use.",
+    "loading": "Cargando servidores MCP…",
+    "loadFailed": "No se pudieron cargar los servidores MCP",
+    "empty": "Este perfil no tiene servidores MCP configurados.",
+    "remove": "Quitar",
+    "removed": "{name} eliminado",
+    "removeFailed": "No se pudo eliminar el servidor MCP",
+    "confirmRemove": "¿Quitar el servidor MCP \"{name}\" de este perfil? Para volver a añadirlo hace falta el CLI de Hermes.",
+    "headers": "sin cabeceras | 1 cabecera | {count} cabeceras",
+    "headersTooltip": "Número de cabeceras HTTP configuradas (probablemente tokens de auth). Los valores no se muestran.",
+    "transport": {
+      "http": "HTTP",
+      "stdio": "stdio",
+      "unknown": "desconocido"
+    }
+  },
+  "retrain": {
+    "action": "Reentrenar",
+    "title": "Reentrenar a {name}",
+    "subtitle": "Identidad y reglas a la izquierda, herramientas y conocimiento a la derecha. Guarda cuando termines.",
+    "submit": "Guardar",
+    "submitting": "Guardando…",
+    "success": "Perfil actualizado",
+    "failure": "No se pudo actualizar el perfil",
+    "identitySection": "Identidad y reglas",
+    "capabilitiesSection": "Capacidades"
+  },
+  "rename": {
+    "label": "Slug del perfil",
+    "help": "Letras minúsculas y números. Renombra el perfil de Hermes y reapunta a los workers al nuevo id.",
+    "blockedDefault": "El perfil por defecto no se puede renombrar.",
+    "invalid": "El slug solo puede contener letras minúsculas y números.",
+    "renaming": "Renombrando…",
+    "success": "Renombrado a {slug}",
+    "failure": "No se pudo renombrar el perfil"
+  },
+  "fire": {
+    "action": "Despedir",
+    "confirmTitle": "¿Despedir a {name}?",
+    "confirmBody": "Eliminará permanentemente el perfil de Hermes, su configuración, SOUL, reglas AGENTS, skills y datos de kanban. No se puede deshacer.",
+    "confirmAction": "Despedir",
+    "submitting": "Despidiendo…",
+    "success": "{name} despedido",
+    "failure": "No se pudo despedir al perfil",
+    "blockedDefault": "El perfil por defecto no se puede despedir."
+  },
+  "profileConfig": {
+    "loadFailed": "No se pudo cargar la configuración del perfil",
+    "model": "Modelo",
+    "modelHint": "El `model.default` que Hermes resuelve por su registry de modelos (ej. `qwen3.6`, `claude-sonnet-4-5`, `gpt-4-turbo`).",
+    "modelPlaceholder": "ej. claude-sonnet-4-5",
+    "modelSearch": "Buscar o escribir un id de modelo…",
+    "modelCustom": "Usar \"{value}\"",
+    "modelEmpty": "Catálogo vacío — escribe cualquier id de modelo.",
+    "modelRecommended": "recomendado",
+    "modelFree": "gratis",
+    "modelCurrent": "actual",
+    "provider": "Proveedor",
+    "providerHint": "Proveedor de inferencia (`anthropic`, `openai`, `custom`, …). Deja vacío para usar el default del modelo.",
+    "providerPlaceholder": "auto",
+    "allowlist": "Comandos peligrosos pre-aprobados",
+    "allowlistHint": "Los comandos que coincidan con estas descripciones de patrones peligrosos saltan el prompt de aprobación del usuario. Para un orquestador, déjalo VACÍO para que cosas como `python3 -c` se denieguen automáticamente.",
+    "allowlistEmpty": "Sin pre-aprobaciones — cada comando peligroso pasará por el callback de permisos (que el war-room deniega por defecto).",
+    "allowlistRemove": "Quitar pre-aprobación: {entry}",
+    "allowlistClear": "Borrar todo"
+  },
+  "agents": {
+    "title": "Reglas de comportamiento (AGENTS.md)",
+    "hintGlobal": "Este perfil no tiene AGENTS.md local — estás viendo el global de ~/.hermes/AGENTS.md. Al guardar se creará una copia específica para este perfil que sobrescribe el global.",
+    "hintProfile": "AGENTS.md específico del perfil. Se inyecta en el system prompt en cada turno.",
+    "hintEmpty": "No hay reglas definidas ni globales ni para este perfil. Añade convenciones, qué hacer y qué evitar, etc.",
+    "placeholder": "# Reglas de comportamiento\n\n- Nunca hacer commit sin confirmación explícita.\n- Leer antes de escribir.\n- Usar lenguaje claro en informes no técnicos.",
+    "inheriting": "Heredando global",
+    "loadFailed": "No se pudo cargar AGENTS.md"
+  },
+  "badge": {
+    "operativeFile": "Expediente Operativo",
+    "callsign": "Nombre",
+    "profileId": "ID de perfil",
+    "status": "Estado",
+    "assignCallsign": "Asignar Nombre",
+    "unnamed": "— sin nombre —",
+    "primary": "Principal",
+    "issued": "Emitido {date}",
+    "rolling": "recreando",
+    "reroll": "recrear",
+    "callsignAssigned": "Nombre asignado",
+    "saveFailed": "Error al guardar",
+    "rerollFailed": "Error al recrear",
+    "active": "Activo",
+    "inactive": "Fuera de servicio",
+    "activate": "Activar",
+    "deactivate": "Desactivar",
+    "activeUpdated": "Roster actualizado",
+    "activeFailed": "No se pudo actualizar el roster",
+    "gesture": {
+      "hand": "En espera",
+      "handPhone": "En comunicación",
+      "ok": "Confirmado",
+      "okLongarms": "Emitiendo",
+      "pointLongarms": "Apuntando",
+      "waveLongarms": "Saludando",
+      "waveOkLongarms": "Coordinando"
+    }
+  }
+}

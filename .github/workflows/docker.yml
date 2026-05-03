@@ -1,0 +1,104 @@
+name: docker
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*.*.*']
+  workflow_dispatch: {}
+
+# - contents: read   → checkout
+# - packages: write  → publish image to ghcr.io
+# - id-token: write  → OIDC for sigstore/cosign keyless signing (optional but cheap)
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+# One build per ref — if a new push lands while we're building, cancel the older run.
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Multi-arch builds need QEMU.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tags emitted (image is `ghcr.io/<owner>/<repo>` lowercased):
+      #   - `vX.Y.Z`, `X.Y.Z`, `X.Y`, `X` for any pushed tag matching v*.*.*
+      #   - `latest` for the default branch
+      #   - `main` / `master` (raw branch name)
+      #   - `sha-<short>` for any push (always uniquely identifies a commit)
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}
+            org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            org.opencontainers.image.licenses=${{ github.event.repository.license.spdx_id }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      # The default GITHUB_TOKEN can publish to GHCR but CANNOT change package
+      # visibility. To auto-flip the package to public, set a repo secret named
+      # `GHCR_ADMIN_TOKEN` (PAT with `admin:packages` scope, or fine-grained
+      # token with `Administration: write` on this repo). Without it, run this
+      # one-liner once locally after the first push:
+      #   gh api -X PATCH /user/packages/container/<repo>/visibility -f visibility=public
+      # …or flip it via the GitHub UI: Packages → settings → "Change visibility".
+      - name: Make package public
+        if: ${{ github.event_name != 'pull_request' && env.GHCR_ADMIN_TOKEN != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GHCR_ADMIN_TOKEN }}
+          GHCR_ADMIN_TOKEN: ${{ secrets.GHCR_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY%%/*}"
+          # Try org endpoint first, fall back to user. Idempotent — no-op once public.
+          gh api -X PATCH \
+            "/orgs/${owner}/packages/container/${repo_name}/visibility" \
+            -f visibility=public 2>/dev/null \
+          || gh api -X PATCH \
+            "/user/packages/container/${repo_name}/visibility" \
+            -f visibility=public 2>/dev/null \
+          || echo "::notice::Could not change visibility — token may lack admin:packages scope."

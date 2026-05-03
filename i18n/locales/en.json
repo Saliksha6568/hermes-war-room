@@ -1,0 +1,334 @@
+{
+  "app": {
+    "title": "Hermes Orchestration War Room",
+    "description": "Visual orchestration layer for the Hermes multi-agent delegation system."
+  },
+  "nav": {
+    "warRoom": "OrchestrationWar Room",
+    "team": "The Team",
+    "missions": "Missions"
+  },
+  "common": {
+    "rescan": "Rescan",
+    "cancel": "Cancel",
+    "default": "default",
+    "language": "Language",
+    "manage": "Manage",
+    "done": "Done"
+  },
+  "warRoom": {
+    "title": "Orchestration War Room",
+    "errorTitle": "Failed to load profiles",
+    "empty": "No Hermes profiles found under {dir}.",
+    "operativesCount": "no operatives | 1 operative | {count} operatives",
+    "stationLabel": "Station {num}",
+    "operationsFloor": "Operations Floor",
+    "detail": {
+      "title": "Operative dossier",
+      "currentTask": "Current task",
+      "noTask": "No active task — standing by.",
+      "delegatedBy": "Delegated by",
+      "heartbeat": "Last heartbeat {ago} ago",
+      "live": "Live",
+      "started": "Started {time}",
+      "lastSteps": "Recent steps",
+      "noSteps": "No activity captured yet.",
+      "missionThread": "Mission thread",
+      "noMission": "No mission in progress.",
+      "subtasks": "Subtasks",
+      "noSubtasks": "No subtasks attached.",
+      "taskFeed": "Task activity",
+      "taskFeedLoading": "Loading conversation…",
+      "taskFeedNotStarted": "Worker hasn't started yet — no log file on disk.",
+      "taskFeedNoSession": "Worker started but session ID not yet stamped in the log.",
+      "taskFeedEmpty": "No messages recorded yet.",
+      "taskFeedReasoning": "Reasoning",
+      "taskFeedTotalsTitle": "Input: {input} tokens · Output: {output} tokens"
+    },
+    "history": {
+      "title": "Mission archive",
+      "subtitle": "Past missions, newest first.",
+      "empty": "No missions yet.",
+      "open": "Open",
+      "archived": "Archived",
+      "all": "All",
+      "messageCount": "no messages | 1 message | {count} messages",
+      "createdAt": "Started {when}",
+      "updatedAt": "Last activity {when}",
+      "loadFailed": "Could not load missions",
+      "page": "Page {current} of {total}",
+      "prev": "Prev",
+      "next": "Next"
+    }
+  },
+  "mission": {
+    "title": "Mission",
+    "send": "Assign",
+    "sending": "Assigning…",
+    "thinking": "{orch} is thinking…",
+    "newMission": "New mission",
+    "archived": "Mission archived",
+    "failure": "Could not reach the orchestrator",
+    "orchestrator": "Orchestrator",
+    "dispatcherWarning": "No dispatcher detected. Run `hermes gateway start` so workers pick up tasks.",
+    "connectionLost": "Stream interrupted. Reconnecting…",
+    "idle": "Idle",
+    "empty": {
+      "placeholder": "Describe the mission for {orch}…"
+    },
+    "input": {
+      "followUp": "Reply or refine the mission…"
+    },
+    "task": {
+      "running": "Working on",
+      "queued": "Queued",
+      "blocked": "Blocked",
+      "thinking": "Thinking…"
+    },
+    "tabs": {
+      "chat": "Chat",
+      "board": "Board"
+    },
+    "board": {
+      "empty": "No tasks here.",
+      "boardEmpty": "Nothing on the board yet — assign a mission to get started.",
+      "col": {
+        "todo": "Todo",
+        "ready": "Ready",
+        "running": "Running",
+        "blocked": "Blocked"
+      },
+      "started": "started {ago} ago",
+      "waiting": "waiting {ago}"
+    },
+    "detail": {
+      "title": "Operative dossier",
+      "currentTask": "Current task",
+      "noTask": "No active task.",
+      "subtasks": "Delegated tasks",
+      "noSubtasks": "No outstanding delegations.",
+      "delegatedBy": "Delegated by",
+      "started": "Started {time}",
+      "heartbeat": "Heartbeat {ago}s ago",
+      "openMission": "Open mission",
+      "viewKanban": "View in kanban",
+      "lastSteps": "Recent activity",
+      "noSteps": "No recent activity.",
+      "missionThread": "Mission thread",
+      "noMission": "No active mission for this operative.",
+      "live": "Live"
+    }
+  },
+  "team": {
+    "title": "The Team",
+    "errorTitle": "Failed to load profiles",
+    "empty": "No Hermes profiles found under {dir}.",
+    "hire": "Hire"
+  },
+  "hire": {
+    "title": "Operative intake",
+    "subtitle": "Pick a preset, edit the dossier, deploy.",
+    "presetSection": "Lane",
+    "presetHint": "Each preset prefills identity, rules, tools and skills. You can tweak everything before hiring.",
+    "briefingSection": "Briefing",
+    "capabilitiesSection": "Capabilities",
+    "nameLabel": "Profile slug",
+    "namePlaceholder": "e.g. researcher",
+    "nameHint": "Lowercase letters and numbers only — used as the kanban assignee value.",
+    "cloneLabel": "Copy from",
+    "clonePlaceholder": "Start fresh",
+    "cloneHint": "Optionally seed config.yaml + .env from an existing profile. Identity below overrides their SOUL.md.",
+    "noteAfterCreate": "MCP servers and provider auth can be configured after the profile is created.",
+    "submit": "Deploy",
+    "submitting": "Deploying…",
+    "success": "{name} deployed.",
+    "failure": "Could not deploy profile"
+  },
+  "presets": {
+    "orchestrator": {
+      "title": "Orchestrator",
+      "tagline": "You need dispatch, routing, drift detection, and escalation."
+    },
+    "builder": {
+      "title": "Builder",
+      "tagline": "You need product code shipped with tests and build proof."
+    },
+    "reviewer": {
+      "title": "Reviewer",
+      "tagline": "You need byte-verified review and merge readiness."
+    },
+    "triage": {
+      "title": "Triage",
+      "tagline": "You need issues and PRs scored, reproduced, patched, prepared."
+    },
+    "lab": {
+      "title": "Lab",
+      "tagline": "You need isolated experiments or local-model benchmarking."
+    },
+    "fetcher": {
+      "title": "Data Fetcher",
+      "tagline": "You need information pulled from the open web — search, scrape, structured extraction. No analysis."
+    },
+    "sage": {
+      "title": "Sage",
+      "tagline": "You need research, synthesis, scripts, or launch copy."
+    },
+    "scribe": {
+      "title": "Scribe",
+      "tagline": "You need docs, specs, handoffs, skills hygiene, memory curation."
+    },
+    "foundation": {
+      "title": "Foundation",
+      "tagline": "You need runtime, repair, infra, health, or lifecycle work."
+    },
+    "qa": {
+      "title": "QA",
+      "tagline": "You need regression, smoke, expected-vs-actual verification."
+    },
+    "mirror": {
+      "title": "Mirror Integrations",
+      "tagline": "You need upstream sync, integrations, or asset packs."
+    },
+    "custom": {
+      "title": "Custom",
+      "tagline": "You're creating a lane that does not fit an existing preset."
+    }
+  },
+  "skills": {
+    "title": "Skills",
+    "loading": "Loading skills…",
+    "loadFailed": "Failed to load skills",
+    "empty": "No skills available.",
+    "search": "Search skills…",
+    "selectAll": "Enable all",
+    "selectNone": "Disable all",
+    "selected": "{count} of {total} enabled",
+    "uncategorized": "Other",
+    "sourceBuiltin": "Builtin",
+    "sourceGlobal": "Global",
+    "sourceProfile": "Local"
+  },
+  "tools": {
+    "title": "Tools",
+    "loading": "Loading tools…",
+    "loadFailed": "Failed to load tools",
+    "empty": "No tools available.",
+    "search": "Search tools…",
+    "selectAll": "Enable all",
+    "selectNone": "Disable all",
+    "selected": "{count} of {total} enabled"
+  },
+  "soul": {
+    "title": "Identity",
+    "hint": "Free-form Markdown saved to SOUL.md inside the profile. Tells the agent who they are and what they do.",
+    "placeholder": "# Who You Are\n\n_You're not a chatbot. You're becoming someone._\n\nWho Am I?\n\n- **Name:**\n- **Role:**\n- **Vibe:**",
+    "loadFailed": "Failed to load SOUL.md"
+  },
+  "mcp": {
+    "title": "MCP servers",
+    "hint": "Remote tool sources connected to this profile. Failing servers slow every cold start (3 retries, ~7s wasted) — remove the ones this profile doesn't use.",
+    "loading": "Loading MCP servers…",
+    "loadFailed": "Failed to load MCP servers",
+    "empty": "No MCP servers configured for this profile.",
+    "remove": "Remove",
+    "removed": "{name} removed",
+    "removeFailed": "Could not remove MCP server",
+    "confirmRemove": "Remove MCP server \"{name}\" from this profile? Re-adding requires the Hermes CLI.",
+    "headers": "no headers | 1 header | {count} headers",
+    "headersTooltip": "Number of HTTP headers configured (likely auth tokens). Their values are not shown.",
+    "transport": {
+      "http": "HTTP",
+      "stdio": "stdio",
+      "unknown": "unknown"
+    }
+  },
+  "retrain": {
+    "action": "Retrain",
+    "title": "Retrain {name}",
+    "subtitle": "Identity & rules on the left, tools & knowledge on the right. Save when done.",
+    "submit": "Save",
+    "submitting": "Saving…",
+    "success": "Profile updated",
+    "failure": "Could not update profile",
+    "identitySection": "Identity & rules",
+    "capabilitiesSection": "Capabilities"
+  },
+  "rename": {
+    "label": "Profile slug",
+    "help": "Lowercase alphanumeric. Renames the Hermes profile and re-points workers to the new id.",
+    "blockedDefault": "Default profile cannot be renamed.",
+    "invalid": "Slug must be lowercase letters and numbers only.",
+    "renaming": "Renaming…",
+    "success": "Renamed to {slug}",
+    "failure": "Could not rename profile"
+  },
+  "fire": {
+    "action": "Fire",
+    "confirmTitle": "Fire {name}?",
+    "confirmBody": "This permanently removes the Hermes profile, its config, SOUL, AGENTS rules, skills and kanban data. This cannot be undone.",
+    "confirmAction": "Fire",
+    "submitting": "Firing…",
+    "success": "{name} fired",
+    "failure": "Could not fire profile",
+    "blockedDefault": "Default profile cannot be fired."
+  },
+  "profileConfig": {
+    "loadFailed": "Failed to load profile config",
+    "model": "Model",
+    "modelHint": "The `model.default` value Hermes resolves through its model registry (e.g. `qwen3.6`, `claude-sonnet-4-5`, `gpt-4-turbo`).",
+    "modelPlaceholder": "e.g. claude-sonnet-4-5",
+    "modelSearch": "Search or type a model id…",
+    "modelCustom": "Use \"{value}\"",
+    "modelEmpty": "Catalog empty — type any model id.",
+    "modelRecommended": "recommended",
+    "modelFree": "free",
+    "modelCurrent": "current",
+    "provider": "Provider",
+    "providerHint": "Inference provider (`anthropic`, `openai`, `custom`, …). Leave empty to use the default for the model.",
+    "providerPlaceholder": "auto",
+    "allowlist": "Pre-approved dangerous commands",
+    "allowlistHint": "Commands matching these dangerous-pattern descriptions skip the user-approval prompt. For an orchestrator, leave this EMPTY so things like `python3 -c` get auto-denied.",
+    "allowlistEmpty": "No pre-approvals — every dangerous command will go through the permission callback (which the war-room denies by default).",
+    "allowlistRemove": "Remove pre-approval: {entry}",
+    "allowlistClear": "Clear all"
+  },
+  "agents": {
+    "title": "Behavior rules (AGENTS.md)",
+    "hintGlobal": "This profile has no local AGENTS.md — you're seeing the global ~/.hermes/AGENTS.md. Saving creates a profile-specific copy that overrides it.",
+    "hintProfile": "Profile-specific AGENTS.md. Loaded into the agent's system prompt at every turn.",
+    "hintEmpty": "No rules defined globally or for this profile. Add behavior conventions, dos & don'ts, etc.",
+    "placeholder": "# Behavior rules\n\n- Never commit without explicit confirmation.\n- Prefer reading before writing.\n- Use plain language for non-technical reports.",
+    "inheriting": "Inheriting global",
+    "loadFailed": "Failed to load AGENTS.md"
+  },
+  "badge": {
+    "operativeFile": "Operative File",
+    "callsign": "Callsign",
+    "profileId": "Profile ID",
+    "status": "Status",
+    "assignCallsign": "Assign callsign",
+    "unnamed": "— unnamed —",
+    "primary": "Primary",
+    "issued": "Issued {date}",
+    "rolling": "rolling",
+    "reroll": "reroll",
+    "callsignAssigned": "Callsign assigned",
+    "saveFailed": "Save failed",
+    "rerollFailed": "Reroll failed",
+    "active": "Active",
+    "inactive": "Off duty",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "activeUpdated": "Roster updated",
+    "activeFailed": "Could not update roster",
+    "gesture": {
+      "hand": "Standing by",
+      "handPhone": "On comms",
+      "ok": "Confirmed",
+      "okLongarms": "Broadcasting",
+      "pointLongarms": "Targeting",
+      "waveLongarms": "Hailing",
+      "waveOkLongarms": "Coordinating"
+    }
+  }
+}
