@@ -19,6 +19,9 @@ interface PostBody {
   preset?: string | null
   model?: string | null
   provider?: string | null
+  /** When true, copy the global model block into the new profile. Sent by
+   *  the Hire modal's "Heredar global" toggle when ON. */
+  inheritGlobalModel?: boolean
 }
 
 const NAME_RE = /^[a-z0-9]+$/
@@ -121,9 +124,17 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const configPatch: { model?: string | null, provider?: string | null } = {}
-  if ('model' in body) configPatch.model = body.model?.trim() || null
-  if ('provider' in body) configPatch.provider = body.provider?.trim() || null
+  const configPatch: {
+    model?: string | null
+    provider?: string | null
+    inheritGlobalModel?: boolean
+  } = {}
+  if (body.inheritGlobalModel === true) {
+    configPatch.inheritGlobalModel = true
+  } else {
+    if ('model' in body) configPatch.model = body.model?.trim() || null
+    if ('provider' in body) configPatch.provider = body.provider?.trim() || null
+  }
   if (Object.keys(configPatch).length > 0) {
     try {
       writeProfileConfig(discovered.hermesDir, configPatch)

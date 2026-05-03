@@ -336,9 +336,11 @@ async function submit() {
         soul: soulPayload,
         agents: agentsPayload,
         preset: selectedPresetId.value === 'custom' ? null : selectedPresetId.value,
-        /* When the user wants to inherit from the global config, send null
-           for both fields so the profile's config.yaml stays out of the
-           model:/provider: section and Hermes resolves them globally. */
+        /* "Heredar global" → server-side: copy the global model block into
+           the new profile (default + provider + base_url + api_key). Hermes
+           treats each profile config as fully self-contained, so we mirror
+           the values rather than rely on inheritance. */
+        inheritGlobalModel: inheritGlobal.value,
         model: inheritGlobal.value ? null : (model.value || null),
         provider: inheritGlobal.value ? null : (provider.value || null)
       }

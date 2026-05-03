@@ -131,15 +131,28 @@ async function handleSend() {
 }
 
 const transcriptRef = ref<HTMLElement | null>(null)
+
+/* Auto-scroll to bottom on new messages or streaming chunks — but only if
+   the user is already near the bottom. If they've scrolled UP to read
+   history, we don't yank them down on every chunk. Threshold matches the
+   log-tail implementation (64 px). New-message arrivals (length change)
+   force the scroll regardless, since a fresh user/assistant turn always
+   wants visibility. */
+function scrollTranscriptToBottom(force = false) {
+  const el = transcriptRef.value
+  if (!el) return
+  if (!force) {
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (distanceFromBottom > 64) return
+  }
+  el.scrollTop = el.scrollHeight
+}
+
 watch(() => stream.messages.value.length, () => {
-  nextTick(() => {
-    if (transcriptRef.value) transcriptRef.value.scrollTop = transcriptRef.value.scrollHeight
-  })
+  nextTick(() => scrollTranscriptToBottom(true))
 })
 watch(() => stream.messages.value[stream.messages.value.length - 1]?.content, () => {
-  nextTick(() => {
-    if (transcriptRef.value) transcriptRef.value.scrollTop = transcriptRef.value.scrollHeight
-  })
+  nextTick(() => scrollTranscriptToBottom(false))
 })
 
 const hasMission = computed(() => stream.mission.value !== null)

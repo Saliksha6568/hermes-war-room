@@ -123,9 +123,23 @@ function isActive(to: string): boolean {
 .hwr-shell {
   display: flex;
   flex-direction: column;
+  /* Default: shell grows with its content. `min-height: 100vh` keeps the
+     topbar at the top of the viewport but lets pages like /team and
+     /missions extend the shell and use the page-level scrollbar. */
   min-height: 100vh;
   background: #f4efe2;
   color: #1c1a14;
+}
+/* The home page (operations floor + mission chat) is the only screen that
+   wants to LOCK to the viewport so its inner panes scroll independently.
+   When the rendered page sets `.page--locked`, the shell flips to a
+   definite-height column and clips any overflow — this is what makes the
+   mission transcript scroll internally instead of pushing the whole page.
+   Other routes don't set this class → shell stays growable. */
+.hwr-shell:has(.page--locked) {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* === Top bar — paper console rule, ties visually to the floor === */

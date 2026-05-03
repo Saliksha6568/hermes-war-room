@@ -182,7 +182,7 @@ const scopeLabel = computed(() => {
 </script>
 
 <template>
-  <div class="page page--war-room">
+  <div class="page page--war-room page--locked">
     <PageHeader :title="t('warRoom.title')">
       <template #actions>
         <USelectMenu
@@ -347,6 +347,14 @@ const scopeLabel = computed(() => {
 .split {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  /* Pin the implicit row to the container height — without this, a grid
+     row of `auto` track sizes to its content's min-height, so when the
+     mission transcript or the agents floor have a lot of content the row
+     grows past the viewport and the inner `overflow-y: auto` boxes never
+     get a definite height to scroll inside. `minmax(0, 1fr)` lets the row
+     shrink below content too, which is what `min-height: 0` is for the
+     children. */
+  grid-template-rows: minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
   align-items: stretch;

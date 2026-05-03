@@ -36,6 +36,42 @@ function readGlobalModelConfig(): { model: string | null, provider: string | nul
   }
 }
 
+/* Read the FULL `model:` block from ~/.hermes/config.yaml — default,
+   provider, base_url, api_key. Hermes treats each profile's config.yaml as
+   self-contained (NO inheritance between profile and global) so to make a
+   profile "use the global model" we have to physically copy the four fields
+   into the profile's config. Returns null when the global has no `model:`
+   block at all (very unusual but handled). */
+export interface GlobalModelBlock {
+  default: string | null
+  provider: string | null
+  base_url: string | null
+  api_key: string | null
+}
+export function readGlobalModelBlock(): GlobalModelBlock | null {
+  if (!existsSync(GLOBAL_CONFIG_PATH)) return null
+  try {
+    const cfg = parseYaml(readFileSync(GLOBAL_CONFIG_PATH, 'utf8')) as {
+      model?: {
+        default?: unknown
+        provider?: unknown
+        base_url?: unknown
+        api_key?: unknown
+      }
+    } | null
+    if (!cfg?.model) return null
+    const m = cfg.model
+    return {
+      default: typeof m.default === 'string' ? m.default : null,
+      provider: typeof m.provider === 'string' ? m.provider : null,
+      base_url: typeof m.base_url === 'string' ? m.base_url : null,
+      api_key: typeof m.api_key === 'string' ? m.api_key : null
+    }
+  } catch {
+    return null
+  }
+}
+
 export interface ProfileConfigSlice {
   /** model.default — the model string Hermes resolves through its model registry. */
   model: string | null
@@ -75,6 +111,13 @@ export interface ProfileConfigPatch {
   model?: string | null
   provider?: string | null
   allowlist?: string[]
+  /** When true, copy the global Hermes `model:` block (default, provider,
+   *  base_url, api_key) into this profile's config, overwriting any prior
+   *  override. Hermes profiles are NOT inherit-on-miss — they fully shadow
+   *  the global — so the only way to "use global" is to physically mirror
+   *  the values into the profile. `model` / `provider` from the same patch
+   *  are ignored when this flag is true. */
+  inheritGlobalModel?: boolean
 }
 
 /**
@@ -89,7 +132,24 @@ export function writeProfileConfig(profileDir: string, patch: ProfileConfigPatch
   const raw = existsSync(path) ? readFileSync(path, 'utf8') : ''
   const doc = parseYamlDocument(raw)
 
-  if ('model' in patch || 'provider' in patch) {
+  /* Inherit-from-global: physically copy the global `model:` block into the
+     profile so Hermes sees explicit values. Runs FIRST so the per-field
+     `model`/`provider` patch logic below would just be redundant. */
+  if (patch.inheritGlobalModel) {
+    const global = readGlobalModelBlock()
+    if (global) {
+      doc.set('model', {
+        ...(global.default !== null ? { default: global.default } : {}),
+        ...(global.provider !== null ? { provider: global.provider } : {}),
+        ...(global.base_url !== null ? { base_url: global.base_url } : {}),
+        ...(global.api_key !== null ? { api_key: global.api_key } : {})
+      })
+    } else {
+      /* Global has no model block — nothing to copy. Strip any profile-level
+         override so we don't keep a stale value. */
+      if (doc.has('model')) doc.delete('model')
+    }
+  } else if ('model' in patch || 'provider' in patch) {
     /* If `model:` exists but is a scalar/sequence (malformed user config),
        refuse to silently overwrite. Otherwise rely on setIn/deleteIn —
        they create the intermediate map for fresh/empty documents and

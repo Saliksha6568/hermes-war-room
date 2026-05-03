@@ -339,18 +339,26 @@ async function submit() {
       }))
     }
 
-    /* When "Inherit from global" is on, force model + provider to null on
-       save so the profile's config.yaml drops the override and Hermes uses
-       the global block (which carries base_url + api_key in lockstep). */
+    /* "Inherit from global" → backend physically copies the global model
+       block (default + provider + base_url + api_key) into the profile.
+       Hermes profiles are NOT inherit-on-miss — they fully shadow global —
+       so we have to mirror the values explicitly. */
     const effectiveModel = inheritGlobal.value ? null : (model.value.trim() || null)
     const effectiveProvider = inheritGlobal.value ? null : (provider.value.trim() || null)
-    const modelChanged = effectiveModel !== (initialModel.value || null)
-    const providerChanged = effectiveProvider !== (initialProvider.value || null)
+    const modelChanged = !inheritGlobal.value && effectiveModel !== (initialModel.value || null)
+    const providerChanged = !inheritGlobal.value && effectiveProvider !== (initialProvider.value || null)
     const allowlistChanged = JSON.stringify(allowlist.value) !== JSON.stringify(initialAllowlist.value)
-    if (modelChanged || providerChanged || allowlistChanged) {
+    /* Always send inherit when the toggle is ON, even if it was on initially —
+       cheap idempotent overwrite that re-syncs the profile to current global
+       (covers the case where the user changed global between saves). */
+    if (inheritGlobal.value || modelChanged || providerChanged || allowlistChanged) {
       const body: Record<string, unknown> = {}
-      if (modelChanged) body.model = effectiveModel
-      if (providerChanged) body.provider = effectiveProvider
+      if (inheritGlobal.value) {
+        body.inheritGlobalModel = true
+      } else {
+        if (modelChanged) body.model = effectiveModel
+        if (providerChanged) body.provider = effectiveProvider
+      }
       if (allowlistChanged) body.allowlist = allowlist.value
       writes.push($fetch(`/api/profiles/${workingSlug}/config`, {
         method: 'PUT',

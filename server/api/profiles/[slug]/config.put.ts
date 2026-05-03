@@ -6,6 +6,9 @@ interface PutBody {
   model?: string | null
   provider?: string | null
   allowlist?: unknown
+  /** When true, copy the global `model:` block into the profile config so
+   *  Hermes sees explicit values. The war-room's "Heredar global" toggle. */
+  inheritGlobalModel?: boolean
 }
 
 export default defineEventHandler(async (event) => {
@@ -21,11 +24,15 @@ export default defineEventHandler(async (event) => {
   if (!row) throw createError({ statusCode: 404, statusMessage: 'Profile not found' })
 
   const patch: Parameters<typeof writeProfileConfig>[1] = {}
-  if ('model' in body) {
-    if (body.model === null || typeof body.model === 'string') patch.model = body.model
-  }
-  if ('provider' in body) {
-    if (body.provider === null || typeof body.provider === 'string') patch.provider = body.provider
+  if (body.inheritGlobalModel === true) {
+    patch.inheritGlobalModel = true
+  } else {
+    if ('model' in body) {
+      if (body.model === null || typeof body.model === 'string') patch.model = body.model
+    }
+    if ('provider' in body) {
+      if (body.provider === null || typeof body.provider === 'string') patch.provider = body.provider
+    }
   }
   if ('allowlist' in body) {
     if (!Array.isArray(body.allowlist)) {
