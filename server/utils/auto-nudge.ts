@@ -175,12 +175,86 @@ function markNotified(missionId: string, taskIds: string[]): void {
   `).run(Math.floor(Date.now() / 1000), missionId, ...taskIds)
 }
 
+/* Extra context we can attach to a nudge so the orchestrator knows WHY a task
+   ended where it did. Without this, a `blocked` task is just "blocked" with no
+   actionable reason and the orchestrator goes quiet on the user.
+   Fields are pulled from the kanban DB at nudge time:
+     - lastComment: most recent task_comments row (workers post their failure
+       reason here when calling `hermes kanban block "<reason>"`).
+     - taskResult:  the `tasks.result` column (set on `kanban complete`).
+     - lastRunOutcome / lastRunError: latest `task_runs` row — captures crashes,
+       timeouts and spawn failures that never reach the comment/result path. */
+interface FailureContext {
+  lastComment: { author: string, body: string } | null
+  taskResult: string | null
+  lastRunOutcome: string | null
+  lastRunError: string | null
+  spawnFailures: number
+}
+
+function getFailureContext(taskId: string): FailureContext {
+  const empty: FailureContext = {
+    lastComment: null,
+    taskResult: null,
+    lastRunOutcome: null,
+    lastRunError: null,
+    spawnFailures: 0
+  }
+  const db = getKanbanDb()
+  if (!db) return empty
+  try {
+    const task = db.prepare(
+      `SELECT result, spawn_failures FROM tasks WHERE id = ?`
+    ).get(taskId) as { result: string | null, spawn_failures: number | null } | undefined
+
+    const comment = db.prepare(
+      `SELECT author, body FROM task_comments WHERE task_id = ?
+       ORDER BY created_at DESC LIMIT 1`
+    ).get(taskId) as { author: string, body: string } | undefined
+
+    const run = db.prepare(
+      `SELECT outcome, error FROM task_runs WHERE task_id = ?
+       ORDER BY started_at DESC LIMIT 1`
+    ).get(taskId) as { outcome: string | null, error: string | null } | undefined
+
+    return {
+      lastComment: comment ?? null,
+      taskResult: task?.result ?? null,
+      lastRunOutcome: run?.outcome ?? null,
+      lastRunError: run?.error ?? null,
+      spawnFailures: task?.spawn_failures ?? 0
+    }
+  } catch {
+    return empty
+  }
+}
+
+/** Pick the most informative single-string reason for the user from a
+ *  FailureContext. Empty string when nothing useful is available. */
+function distillReason(ctx: FailureContext): string {
+  if (ctx.lastComment?.body) {
+    return ctx.lastComment.body.trim().replace(/\s+/g, ' ').slice(0, 600)
+  }
+  if (ctx.lastRunError) {
+    return ctx.lastRunError.trim().replace(/\s+/g, ' ').slice(0, 600)
+  }
+  if (ctx.taskResult) {
+    return ctx.taskResult.trim().replace(/\s+/g, ' ').slice(0, 600)
+  }
+  if (ctx.lastRunOutcome && ctx.lastRunOutcome !== 'completed') {
+    return `worker run outcome: ${ctx.lastRunOutcome}`
+  }
+  return ''
+}
+
 /** Hidden preamble describing what just landed; orchestrator reads it as a
  *  user message but is told NOT to echo it. */
 function buildNudgeText(completed: KanbanTask[]): string {
   const lines = [
     '<<war-room-task-update hidden-from-user>>',
-    'The following kanban tasks have just reached a terminal state since your last reply. Summarise what landed for the user. Do NOT re-delegate unless the user explicitly asked for follow-ups. Do NOT echo this system update verbatim.',
+    'The following kanban tasks have just reached a terminal state since your last reply.',
+    'For any task whose status is `blocked` OR whose run failed (crashed, timed_out, spawn_failed), TELL THE USER what went wrong using the failure-reason text below — do not glaze over it. Permission errors, missing credentials, model auth failures, and similar should be surfaced verbatim so the user can fix them.',
+    'Do NOT re-delegate unless the user explicitly asked for follow-ups. Do NOT echo this system update verbatim.',
     ''
   ]
   for (const t of completed) {
@@ -188,6 +262,17 @@ function buildNudgeText(completed: KanbanTask[]): string {
     if (t.body) {
       const body = t.body.trim().replace(/\s+/g, ' ').slice(0, 400)
       lines.push(`    body: ${body}${t.body.length > 400 ? '…' : ''}`)
+    }
+    const ctx = getFailureContext(t.id)
+    const reason = distillReason(ctx)
+    if (reason) {
+      lines.push(`    failure-reason: ${reason}`)
+    }
+    if (ctx.lastRunOutcome && ctx.lastRunOutcome !== 'completed') {
+      lines.push(`    last-run-outcome: ${ctx.lastRunOutcome}`)
+    }
+    if (ctx.spawnFailures > 0) {
+      lines.push(`    spawn-failures: ${ctx.spawnFailures}`)
     }
   }
   lines.push('<<end-of-task-update>>')
@@ -199,11 +284,27 @@ function buildNudgeText(completed: KanbanTask[]): string {
  *  with es as the default locale. TODO: persist `mission.locale` so this can
  *  pick the right language per mission. */
 function buildVisibleNudge(completed: KanbanTask[]): string {
+  const anyFailed = completed.some(t => t.status === 'blocked')
   const head = completed.length === 1
-    ? `[Sala de Guerra] Tarea completada:`
-    : `[Sala de Guerra] ${completed.length} tareas completadas:`
+    ? (anyFailed ? `[Sala de Guerra] ⚠ Tarea con problemas:` : `[Sala de Guerra] Tarea completada:`)
+    : (anyFailed ? `[Sala de Guerra] ⚠ ${completed.length} tareas con resultado:` : `[Sala de Guerra] ${completed.length} tareas completadas:`)
   const verb = (status: string) => status === 'done' ? 'finalizada' : status === 'blocked' ? 'bloqueada' : status
-  const lines = completed.map(t => `  • ${t.id} (${t.assignee ?? '?'}): ${verb(t.status)} — ${t.title}`)
+  const lines: string[] = []
+  for (const t of completed) {
+    lines.push(`  • ${t.id} (${t.assignee ?? '?'}): ${verb(t.status)} — ${t.title}`)
+    /* For blocked or otherwise-failed tasks, surface the worker's reason in
+       the visible message too — saves the user a click into the dossier when
+       all they need is "auth token missing", "permission denied", etc. */
+    const ctx = getFailureContext(t.id)
+    const reason = distillReason(ctx)
+    const isFailure = t.status === 'blocked'
+      || (ctx.lastRunOutcome && ctx.lastRunOutcome !== 'completed')
+      || ctx.spawnFailures > 0
+    if (reason && isFailure) {
+      const oneLine = reason.replace(/\s+/g, ' ').slice(0, 200)
+      lines.push(`      ↳ ${oneLine}${reason.length > 200 ? '…' : ''}`)
+    }
+  }
   return [head, ...lines].join('\n')
 }
 
