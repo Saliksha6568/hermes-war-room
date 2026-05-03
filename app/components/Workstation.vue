@@ -156,7 +156,14 @@ const statusLine = computed(() => {
 //  2. kanban task title (coarser)
 //  3. "Thinking…" placeholder when busy without anything else to say
 //  4. nothing
+/* When the worker hit a permission auto-deny, that supersedes everything
+   else — show "PERMISO PENDIENTE" in loud red so the user spots it on the
+   floor without opening the slideover. Both the text and the variant get
+   forced; the slideover has the actual approve flow. */
+const permissionPending = computed(() => !!props.currentTask?.pendingPermission)
+
 const bubbleText = computed<string | null>(() => {
+  if (permissionPending.value) return t('warRoom.detail.permissionPending')
   if (props.lastStep) return props.lastStep.label
   const task = props.currentTask
   if (task) return task.title
@@ -164,7 +171,8 @@ const bubbleText = computed<string | null>(() => {
   return null
 })
 
-const bubbleVariant = computed<'thought' | 'tool' | 'running' | 'blocked' | 'queued' | null>(() => {
+const bubbleVariant = computed<'thought' | 'tool' | 'running' | 'blocked' | 'queued' | 'permission' | null>(() => {
+  if (permissionPending.value) return 'permission'
   if (props.lastStep) return props.lastStep.kind === 'tool' ? 'tool' : 'thought'
   const task = props.currentTask
   if (task?.status === 'blocked') return 'blocked'
@@ -175,6 +183,7 @@ const bubbleVariant = computed<'thought' | 'tool' | 'running' | 'blocked' | 'que
 
 const bubbleGlyph = computed(() => {
   switch (bubbleVariant.value) {
+    case 'permission': return 'i-lucide-shield-alert'
     case 'tool': return 'i-lucide-arrow-right'
     case 'thought': return 'i-lucide-brain'
     case 'blocked': return 'i-lucide-octagon-pause'
@@ -435,6 +444,40 @@ const tokenChip = computed(() => {
 }
 .bubble--blocked .bubble-glyph {
   color: #ffb3a0;
+}
+
+/* Permission auto-deny — louder than `blocked`. Pure hot red, white text,
+   pulsing border so the user spots it on a busy floor. The bubble label
+   reads "PERMISO PENDIENTE" so the meaning is unambiguous. */
+.bubble--permission {
+  background: #c8421f;
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow:
+    0 0 0 2px #c8421f,
+    0 0 16px rgba(200, 66, 31, 0.6);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  animation: bubble-permission-pulse 1.6s ease-in-out infinite;
+}
+.bubble--permission::after {
+  border-top-color: #c8421f;
+}
+.bubble--permission .bubble-glyph {
+  color: #fff;
+}
+@keyframes bubble-permission-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px #c8421f,
+      0 0 14px rgba(200, 66, 31, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px #c8421f,
+      0 0 22px rgba(200, 66, 31, 0.95);
+  }
 }
 
 /* Queued covers todo / ready / and any other not-yet-running active state.

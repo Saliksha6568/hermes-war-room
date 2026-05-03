@@ -50,8 +50,8 @@ export interface TaskFeed {
   } | null
 }
 
-const LOG_TAIL_BYTES = 24 * 1024  // last ~24 KB
-const LOG_TAIL_LINES = 80         // capped to N lines after slicing bytes
+const LOG_TAIL_BYTES = 24 * 1024 // last ~24 KB
+const LOG_TAIL_LINES = 80 // capped to N lines after slicing bytes
 
 function readLogTail(taskId: string): { tail: string | null, bytes: number | null, startedAt: number | null } {
   const path = logPath(taskId)

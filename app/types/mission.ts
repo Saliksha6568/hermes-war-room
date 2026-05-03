@@ -31,6 +31,9 @@ export interface CurrentTask {
   createdAt: number
   /** IDs of parent tasks (delegators). Empty for top-level tasks. */
   parentIds: string[]
+  /** Set when the task's failure looks like Hermes' permission classifier
+   *  auto-denied a tool call. Surfaces "PERMISO PENDIENTE" on the bubble. */
+  pendingPermission?: boolean
 }
 
 export type MissionEvent

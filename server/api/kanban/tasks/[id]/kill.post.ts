@@ -28,7 +28,7 @@ function killPid(pid: number, signal: NodeJS.Signals): { ok: boolean, error?: st
     return { ok: true }
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code
-    if (code === 'ESRCH') return { ok: true }            // already gone
+    if (code === 'ESRCH') return { ok: true } // already gone
     if (code === 'EPERM') return { ok: false, error: 'no permission' }
     return { ok: false, error: (e as Error).message }
   }
@@ -90,8 +90,8 @@ export default defineEventHandler(async (event): Promise<KillResult> => {
     await new Promise(r => setTimeout(r, 600))
     for (const pid of workersKilled) {
       try {
-        process.kill(pid, 0)        // probe
-        killPid(pid, 'SIGKILL')      // still alive → escalate
+        process.kill(pid, 0) // probe
+        killPid(pid, 'SIGKILL') // still alive → escalate
       } catch { /* gone, good */ }
     }
   }

@@ -169,6 +169,76 @@ const toast = useToast()
 const killing = ref(false)
 const confirmKill = ref(false)
 
+interface TaskFailure {
+  taskId: string
+  status: string | null
+  assignee: string | null
+  reason: string
+  permissionDenial: boolean
+  suggestedLabel: string | null
+}
+const failure = ref<TaskFailure | null>(null)
+const failureLoading = ref(false)
+async function loadFailure() {
+  if (!feedTaskId.value) {
+    failure.value = null
+    return
+  }
+  failureLoading.value = true
+  try {
+    failure.value = await $fetch<TaskFailure>(`/api/kanban/tasks/${feedTaskId.value}/failure`)
+  } catch {
+    failure.value = null
+  } finally {
+    failureLoading.value = false
+  }
+}
+/* Refetch whenever the task or its status changes. We poll status via the
+   feed loop already; piggybacking off that keeps the call cadence sane. */
+watch(
+  () => [feedTaskId.value, currentTask.value?.status] as const,
+  () => loadFailure(),
+  { immediate: true }
+)
+
+const approving = ref(false)
+const approveLabel = ref('')
+const showApprove = computed(() => !!failure.value?.permissionDenial)
+watch(failure, (f) => {
+  if (f?.suggestedLabel && !approveLabel.value) {
+    approveLabel.value = f.suggestedLabel
+  }
+}, { immediate: true })
+
+async function approveAndRetry() {
+  if (!feedTaskId.value || !approveLabel.value.trim()) return
+  approving.value = true
+  try {
+    const res = await $fetch<{ added: boolean, dispatched: boolean, unblocked: boolean }>(
+      `/api/kanban/tasks/${feedTaskId.value}/approve-and-retry`,
+      { method: 'POST', body: { label: approveLabel.value.trim() } }
+    )
+    toast.add({
+      title: t('warRoom.detail.approveSuccess'),
+      description: `${approveLabel.value.trim()} · added=${res.added} · dispatched=${res.dispatched}`,
+      color: 'primary',
+      icon: 'i-lucide-shield-check'
+    })
+    approveLabel.value = ''
+    failure.value = null
+    await refreshFeed()
+  } catch (e) {
+    const err = e as { data?: { message?: string }, message?: string }
+    toast.add({
+      title: t('warRoom.detail.approveFailed'),
+      description: err.data?.message ?? err.message,
+      color: 'error'
+    })
+  } finally {
+    approving.value = false
+  }
+}
+
 async function killTask() {
   if (!currentTask.value) return
   killing.value = true
@@ -583,7 +653,7 @@ const fmtCost = (n: number) => n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}
               />
               {{ t('warRoom.detail.taskFeedLogSpan', {
                 from: new Date(taskFeed.startedAt).toLocaleTimeString(),
-                to:   new Date(taskFeed.lastActivityAt).toLocaleTimeString()
+                to: new Date(taskFeed.lastActivityAt).toLocaleTimeString()
               }) }}
               <span class="feed-log-span-sep">·</span>
               {{ t('warRoom.detail.taskFeedLastActivity', {
@@ -631,6 +701,58 @@ const fmtCost = (n: number) => n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}
               class="feed-log-tail"
             >{{ fullLog?.content ?? taskFeed?.logTail ?? '' }}</pre>
           </details>
+
+          <!-- Permission approval. When Hermes' classifier auto-denies a
+               worker's tool call, the failure detector picks it up and we
+               offer a single-click "approve the label + unblock + dispatch"
+               flow. Hidden unless the failure looks permission-shaped. -->
+          <div
+            v-if="showApprove"
+            class="feed-approve"
+          >
+            <div class="feed-approve-head">
+              <UIcon
+                name="i-lucide-shield-alert"
+                class="size-3.5"
+              />
+              <span class="feed-approve-title">{{ t('warRoom.detail.approveTitle') }}</span>
+            </div>
+            <p class="feed-approve-body">
+              {{ t('warRoom.detail.approveBody') }}
+            </p>
+            <pre
+              v-if="failure?.reason"
+              class="feed-approve-reason"
+            >{{ failure.reason }}</pre>
+            <UInput
+              v-model="approveLabel"
+              :placeholder="failure?.suggestedLabel ?? t('warRoom.detail.approveNoLabel')"
+              spellcheck="false"
+              autocomplete="off"
+              class="w-full font-mono feed-approve-input"
+            />
+            <p class="feed-approve-hint">
+              {{ t('warRoom.detail.approveLabelHint') }}
+            </p>
+            <button
+              type="button"
+              class="feed-approve-btn"
+              :disabled="approving || !approveLabel.trim()"
+              @click="approveAndRetry"
+            >
+              <UIcon
+                v-if="approving"
+                name="i-lucide-loader"
+                class="size-3.5 feed-approve-spin"
+              />
+              <UIcon
+                v-else
+                name="i-lucide-shield-check"
+                class="size-3.5"
+              />
+              <span>{{ approving ? t('warRoom.detail.approving') : t('warRoom.detail.approveAction') }}</span>
+            </button>
+          </div>
 
           <!-- Kill button. Available for any non-archived task — `running` /
                `blocked` send SIGTERM to the worker; `todo` / `ready` simply
@@ -1233,6 +1355,98 @@ const fmtCost = (n: number) => n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}
    confirmation strip with the consequences spelled out. */
 .feed-kill {
   margin-top: 10px;
+}
+
+/* Permission-approval panel. Loud red border to match the seriousness of
+   "we're about to relax this profile's permission policy permanently". */
+.feed-approve {
+  margin-top: 10px;
+  background: rgba(200, 66, 31, 0.06);
+  border: 1px solid rgba(200, 66, 31, 0.55);
+  border-left: 3px solid #c8421f;
+  border-radius: 3px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.feed-approve-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #c8421f;
+  font-family: 'Antonio', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.feed-approve-title {
+  flex: 1 1 auto;
+}
+.feed-approve-body {
+  margin: 0;
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: rgba(40, 36, 26, 0.78);
+}
+.feed-approve-reason {
+  margin: 0;
+  padding: 6px 8px;
+  background: #1c1a14;
+  color: #e6dfc8;
+  border-radius: 2px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.feed-approve-input :deep(input) {
+  background: rgba(255, 252, 240, 0.85) !important;
+  border-color: rgba(40, 36, 26, 0.32) !important;
+  font-size: 12px !important;
+}
+.feed-approve-hint {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 10.5px;
+  color: rgba(40, 36, 26, 0.62);
+  line-height: 1.35;
+}
+.feed-approve-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: #c8421f;
+  border: 2px solid #c8421f;
+  border-radius: 2px;
+  font-family: 'Antonio', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #f4efe2;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.12s ease;
+  align-self: flex-end;
+}
+.feed-approve-btn:hover:not(:disabled) {
+  background: #a83716;
+  transform: translateY(-1px);
+}
+.feed-approve-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.feed-approve-spin {
+  animation: feedlog-spin 1s linear infinite;
 }
 .feed-kill-btn {
   display: inline-flex;

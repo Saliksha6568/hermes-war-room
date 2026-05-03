@@ -607,55 +607,55 @@ const agentsHint = computed(() => {
                 :label="t('profileConfig.allowlist')"
                 :help="t('profileConfig.allowlistHint')"
               >
-            <div class="space-y-2">
-              <div
-                v-if="!allowlist.length"
-                class="allowlist-empty"
-              >
-                {{ t('profileConfig.allowlistEmpty') }}
-              </div>
-              <div
-                v-else
-                class="flex flex-wrap gap-1.5"
-              >
-                <UBadge
-                  v-for="entry in allowlist"
-                  :key="entry"
-                  color="warning"
-                  variant="subtle"
-                  size="sm"
-                  class="allowlist-chip"
-                >
-                  <span class="font-mono">{{ entry }}</span>
-                  <button
-                    type="button"
-                    class="allowlist-chip-x"
-                    :aria-label="t('profileConfig.allowlistRemove', { entry })"
-                    @click="removeAllowlistEntry(entry)"
+                <div class="space-y-2">
+                  <div
+                    v-if="!allowlist.length"
+                    class="allowlist-empty"
                   >
-                    <UIcon
-                      name="i-lucide-x"
-                      class="size-3"
-                    />
-                  </button>
-                </UBadge>
-              </div>
-              <div
-                v-if="allowlist.length"
-                class="flex justify-end"
-              >
-                <UButton
-                  size="xs"
-                  variant="ghost"
-                  color="neutral"
-                  icon="i-lucide-trash-2"
-                  @click="clearAllowlist"
-                >
-                  {{ t('profileConfig.allowlistClear') }}
-                </UButton>
-              </div>
-            </div>
-          </UFormField>
+                    {{ t('profileConfig.allowlistEmpty') }}
+                  </div>
+                  <div
+                    v-else
+                    class="flex flex-wrap gap-1.5"
+                  >
+                    <UBadge
+                      v-for="entry in allowlist"
+                      :key="entry"
+                      color="warning"
+                      variant="subtle"
+                      size="sm"
+                      class="allowlist-chip"
+                    >
+                      <span class="font-mono">{{ entry }}</span>
+                      <button
+                        type="button"
+                        class="allowlist-chip-x"
+                        :aria-label="t('profileConfig.allowlistRemove', { entry })"
+                        @click="removeAllowlistEntry(entry)"
+                      >
+                        <UIcon
+                          name="i-lucide-x"
+                          class="size-3"
+                        />
+                      </button>
+                    </UBadge>
+                  </div>
+                  <div
+                    v-if="allowlist.length"
+                    class="flex justify-end"
+                  >
+                    <UButton
+                      size="xs"
+                      variant="ghost"
+                      color="neutral"
+                      icon="i-lucide-trash-2"
+                      @click="clearAllowlist"
+                    >
+                      {{ t('profileConfig.allowlistClear') }}
+                    </UButton>
+                  </div>
+                </div>
+              </UFormField>
             </section>
           </div>
         </div>

@@ -3,6 +3,9 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 
+import { getFailureContext, distillReason } from './task-failure'
+import { looksLikePermissionDenial } from './permission-extract'
+
 const HERMES_HOME = process.env.HERMES_HOME || join(homedir(), '.hermes')
 const KANBAN_DB_PATH = join(HERMES_HOME, 'kanban.db')
 
@@ -31,6 +34,10 @@ export interface KanbanTask {
   createdAt: number
   /** IDs of parent tasks (delegators). Pulled from the task_links table. */
   parentIds: string[]
+  /** True when the task's failure looks like Hermes' permission classifier
+   *  auto-denied a tool call. Drives the "PERMISO PENDIENTE" badge on the
+   *  workstation bubble + the approve flow in the slideover. */
+  pendingPermission?: boolean
 }
 
 interface RawTaskRow {
@@ -107,6 +114,16 @@ export function listActiveTasks(assignee?: string): KanbanTask[] {
       const parents = byChild.get(t.id)
       if (parents) t.parentIds = parents
     }
+  }
+
+  /* Hydrate `pendingPermission` for blocked tasks. We only check blocked
+     ones because that's where Hermes' auto-deny lands. Cheap: one lookup
+     per blocked task and there's rarely more than a handful at a time. */
+  const blocked = tasks.filter(t => t.status === 'blocked')
+  for (const t of blocked) {
+    const ctx = getFailureContext(t.id)
+    const reason = distillReason(ctx)
+    if (looksLikePermissionDenial(reason)) t.pendingPermission = true
   }
 
   return tasks
