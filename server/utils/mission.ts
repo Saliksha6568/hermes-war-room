@@ -37,6 +37,29 @@ export function createMission(orchestratorSlug: string, firstMessage: string): M
   const id = randomUUID()
   const now = new Date().toISOString()
   const title = summarizeTitle(firstMessage)
+
+  /* Auto-archive any open mission this orchestrator already has. We only
+     allow ONE open mission per orchestrator at a time — the alternative
+     (multiple open missions silently coexisting) leaves orphan rows whose
+     `mission_watched_tasks` never get cleaned and whose `acp_session_id`
+     would mix contexts if the user reopened the old one.
+     We collect the ids first so callers (auto-nudge, etc.) can react. */
+  const orphans = db
+    .prepare(`SELECT id FROM missions WHERE orchestrator_slug = ? AND status = 'open'`)
+    .all(orchestratorSlug) as { id: string }[]
+  if (orphans.length > 0) {
+    db.prepare(
+      `UPDATE missions SET status = 'archived' WHERE orchestrator_slug = ? AND status = 'open'`
+    ).run(orchestratorSlug)
+    /* Drop their watched tasks — those rows scoped the old mission's view,
+       and the new mission starts with a clean slate. */
+    const ids = orphans.map(o => o.id)
+    const placeholders = ids.map(() => '?').join(',')
+    db.prepare(
+      `DELETE FROM mission_watched_tasks WHERE mission_id IN (${placeholders})`
+    ).run(...ids)
+  }
+
   db.prepare(
     `INSERT INTO missions (id, orchestrator_slug, title, status, created_at, last_message_at)
      VALUES (?, ?, ?, 'open', ?, ?)`

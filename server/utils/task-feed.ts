@@ -28,7 +28,17 @@ export interface TaskFeed {
   /** Timestamp the worker log file was last modified — used by the UI to
    *  decide whether to keep polling. */
   lastActivityAt: number | null
+  /** When the worker log was first created — i.e. when the worker started.
+   *  ms since epoch. */
+  startedAt: number | null
   messages: TaskFeedMessage[]
+  /** Tail of the raw worker log (last ~80 lines). The structured `messages`
+   *  array is preferred when populated, but state.db can lag behind the log
+   *  while the worker streams; this gives the UI something to show in that
+   *  window. */
+  logTail: string | null
+  /** Total bytes in the log file (lets the UI hint "showing tail of N KB"). */
+  logBytes: number | null
   /** Stats derived from the session row when available. */
   totals: {
     messageCount: number
@@ -38,6 +48,30 @@ export interface TaskFeed {
     cacheWriteTokens: number
     estimatedCostUsd: number
   } | null
+}
+
+const LOG_TAIL_BYTES = 24 * 1024  // last ~24 KB
+const LOG_TAIL_LINES = 80         // capped to N lines after slicing bytes
+
+function readLogTail(taskId: string): { tail: string | null, bytes: number | null, startedAt: number | null } {
+  const path = logPath(taskId)
+  if (!existsSync(path)) return { tail: null, bytes: null, startedAt: null }
+  try {
+    const st = statSync(path)
+    const startedAt = Math.floor(st.birthtimeMs || st.ctimeMs || st.mtimeMs)
+    const buf = readFileSync(path, { encoding: 'utf8' })
+    const sliced = buf.length > LOG_TAIL_BYTES ? buf.slice(buf.length - LOG_TAIL_BYTES) : buf
+    /* If we sliced mid-line, drop the partial line at the front so the tail
+       reads cleanly. */
+    const cleaned = buf.length > LOG_TAIL_BYTES
+      ? sliced.slice(sliced.indexOf('\n') + 1)
+      : sliced
+    const lines = cleaned.split('\n')
+    const tail = lines.slice(-LOG_TAIL_LINES).join('\n').trimEnd()
+    return { tail: tail || null, bytes: st.size, startedAt }
+  } catch {
+    return { tail: null, bytes: null, startedAt: null }
+  }
 }
 
 const SESSION_ID_RE = /Session:\s*([A-Za-z0-9_]+)/
@@ -134,6 +168,7 @@ export function getTaskFeed(taskId: string, opts: { profileHint?: string } = {})
   const log = logPath(taskId)
   const started = existsSync(log)
   const lastActivityAt = started ? statSync(log).mtimeMs : null
+  const { tail: logTail, bytes: logBytes, startedAt } = readLogTail(taskId)
 
   const empty: TaskFeed = {
     taskId,
@@ -141,7 +176,10 @@ export function getTaskFeed(taskId: string, opts: { profileHint?: string } = {})
     sessionId: null,
     started,
     lastActivityAt,
+    startedAt,
     messages: [],
+    logTail,
+    logBytes,
     totals: null
   }
 
@@ -199,7 +237,10 @@ export function getTaskFeed(taskId: string, opts: { profileHint?: string } = {})
       sessionId,
       started,
       lastActivityAt,
+      startedAt,
       messages,
+      logTail,
+      logBytes,
       totals: sessionRow
         ? {
             messageCount: sessionRow.message_count ?? 0,

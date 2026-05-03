@@ -115,14 +115,17 @@ const providerMenuItems = computed(() => {
 })
 
 const modelMenuItems = computed<ModelMenuItem[]>(() => {
-  /* Only narrow the model list when the selected provider actually has models
-     in the catalog. Fallback providers (anthropic, openai, custom) have count
-     0 — picking them shouldn't hide every model, since `custom` typically
-     means "I'll bring my own base_url" and the user still wants to pick any id. */
+  /* Strict filter when a provider is selected: show only that provider's
+     models. Custom/self-hosted entries are surfaced via the unshift below
+     and via config.yaml ingestion in /api/models, so picking `custom`
+     correctly narrows to the actual configured model rather than the full
+     soup of every provider. If the selected provider really has no entries
+     anywhere (rare — only if the catalog is empty AND config doesn't
+     declare it), fall back to the full list so the user can still type. */
   const filterProvider = provider.value
-  const providerHasModels = !!filterProvider
+  const providerKnown = !!filterProvider
     && providerCatalog.value.some(p => p.id === filterProvider && p.count > 0)
-  const filtered = providerHasModels
+  const filtered = filterProvider && providerKnown
     ? modelCatalog.value.filter(m => m.provider === filterProvider)
     : modelCatalog.value
 
@@ -533,6 +536,7 @@ const agentsHint = computed(() => {
                   v-model="model"
                   :items="modelMenuItems"
                   value-key="value"
+                  :placeholder="t('profileConfig.providerPlaceholder')"
                   :search-input="{ placeholder: t('profileConfig.modelSearch') }"
                   :create-item="modelCatalogLoaded ? 'always' : false"
                   :disabled="loading"

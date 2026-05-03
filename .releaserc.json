@@ -48,7 +48,11 @@
     }],
     ["@semantic-release/github", {
       "successComment": false,
-      "failComment": false
+      "failComment": false,
+      "assets": [
+        { "path": "dist/hermes-war-room.tar.gz",        "label": "hermes-war-room ${nextRelease.version} (Nuxt build)" },
+        { "path": "dist/hermes-war-room.tar.gz.sha256", "label": "SHA-256 checksum" }
+      ]
     }]
   ]
 }

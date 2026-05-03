@@ -16,7 +16,10 @@ export interface TaskFeed {
   sessionId: string | null
   started: boolean
   lastActivityAt: number | null
+  startedAt: number | null
   messages: TaskFeedMessage[]
+  logTail: string | null
+  logBytes: number | null
   totals: {
     messageCount: number
     inputTokens: number

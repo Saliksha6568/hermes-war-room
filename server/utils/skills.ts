@@ -105,11 +105,11 @@ export function getDisabledSkills(profileDir: string): string[] {
 
 export function setDisabledSkills(profileDir: string, disabled: string[]): void {
   const cfgPath = profileConfigPath(profileDir)
-  if (!existsSync(cfgPath)) {
-    throw new Error(`Profile config not found at ${cfgPath}`)
-  }
-  // Use parseDocument so we preserve comments / formatting where possible.
-  const raw = readFileSync(cfgPath, 'utf8')
+  /* `hermes profile create` without --clone leaves the profile directory
+     without a config.yaml. Create an empty document so first-time skill
+     edits don't error — Hermes accepts any subset of fields, the rest fall
+     back to global defaults. */
+  const raw = existsSync(cfgPath) ? readFileSync(cfgPath, 'utf8') : ''
   const doc = parseYamlDocument(raw)
 
   const sorted = [...new Set(disabled)].sort()

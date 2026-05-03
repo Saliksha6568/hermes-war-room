@@ -36,6 +36,28 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Build the Nuxt output (.output/ is self-contained; no node_modules at
+      # runtime). Result is what gets shipped as the GitHub release tarball.
+      - name: Build app
+        run: pnpm build
+
+      # Pack .output as a release asset. The tarball goes inside `dist/` so the
+      # @semantic-release/github asset glob picks it up. Filename has a stable
+      # base so consumers can curl `latest` predictably.
+      - name: Pack release artifact
+        run: |
+          mkdir -p dist
+          tar -czf "dist/hermes-war-room.tar.gz" .output
+          # Also a checksum, useful for `sha256sum -c` on the consumer side.
+          (cd dist && sha256sum hermes-war-room.tar.gz > hermes-war-room.tar.gz.sha256)
+          ls -lh dist/
+
       - name: Install semantic-release + plugins
         run: |
           npm install --no-save --no-audit --no-fund \

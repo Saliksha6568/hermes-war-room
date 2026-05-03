@@ -226,7 +226,6 @@ The team is mutable from the UI:
 You need Hermes already installed on the host and at least one profile
 created — the war-room shells out to the `hermes` CLI as a subprocess,
 so it has to live in the same process namespace as the Node server.
-Containerising it is more pain than it's worth.
 
 ```bash
 # 1. Hermes profiles — at least an orchestrator and a worker.
@@ -247,6 +246,49 @@ pnpm dev
 
 The dev server hot-reloads on file changes and writes its own SQLite
 state to `data/war-room.db` in the repo root.
+
+---
+
+## Production install (no `pnpm`, no source checkout)
+
+Each push to `main` is auto-released by [semantic-release][sr] as a
+self-contained Nuxt build (`.output/` includes everything; no
+`node_modules` at runtime) attached to a GitHub Release.
+
+[sr]: https://semantic-release.gitbook.io
+
+```bash
+# 1. Download the latest release.
+mkdir -p ~/hermes-war-room && cd ~/hermes-war-room
+curl -L -o hermes-war-room.tar.gz \
+  https://github.com/Naroh091/hermes-war-room/releases/latest/download/hermes-war-room.tar.gz
+# Optional: verify the checksum.
+curl -L -O https://github.com/Naroh091/hermes-war-room/releases/latest/download/hermes-war-room.tar.gz.sha256
+sha256sum -c hermes-war-room.tar.gz.sha256
+tar xzf hermes-war-room.tar.gz
+
+# 2. Run with node — needs Node 22+ and `hermes` available on PATH.
+HERMES_HOME=$HOME/.hermes \
+NITRO_HOST=127.0.0.1 \
+NITRO_PORT=3000 \
+node .output/server/index.mjs
+```
+
+To pin to a specific version: `gh release download v1.2.3 -p
+hermes-war-room.tar.gz` instead.
+
+### Why a release, not `pnpm dev`?
+
+| | `pnpm dev` | tarball + node |
+|---|---|---|
+| Cold start | ~5–10 s | ~300 ms |
+| HMR / live reload | ✅ | ❌ |
+| Idle memory | 400+ MB | ~80 MB |
+| Survives reboot | needs tmux | systemd-friendly |
+| Edit-and-test loop | instant | needs re-release |
+
+For developing the war-room itself: `pnpm dev`. For *using* it as a
+running service: the tarball.
 
 ### Keeping it running across terminal sessions
 
@@ -517,7 +559,6 @@ El equipo es mutable desde el UI:
 Necesitas tener Hermes instalado en el host y al menos un perfil creado
 — la sala lanza la CLI `hermes` como subproceso, así que tiene que
 vivir en el mismo namespace de procesos que el server Node.
-Contenerizarla da más dolor que ventajas.
 
 ```bash
 # 1. Perfiles de Hermes — al menos un orquestador y un worker.
@@ -538,6 +579,50 @@ pnpm dev
 
 El dev server hace hot-reload al cambiar ficheros y escribe su propio
 estado SQLite en `data/war-room.db` dentro del repo.
+
+---
+
+## Instalación en producción (sin `pnpm`, sin clonar el repo)
+
+Cada push a `main` genera un release automático con
+[semantic-release][sr-es] como build de Nuxt autocontenido (`.output/`
+lleva todo, no necesita `node_modules` en runtime) adjunto al release
+de GitHub.
+
+[sr-es]: https://semantic-release.gitbook.io
+
+```bash
+# 1. Descargar la última release.
+mkdir -p ~/hermes-war-room && cd ~/hermes-war-room
+curl -L -o hermes-war-room.tar.gz \
+  https://github.com/Naroh091/hermes-war-room/releases/latest/download/hermes-war-room.tar.gz
+# Opcional: verificar checksum.
+curl -L -O https://github.com/Naroh091/hermes-war-room/releases/latest/download/hermes-war-room.tar.gz.sha256
+sha256sum -c hermes-war-room.tar.gz.sha256
+tar xzf hermes-war-room.tar.gz
+
+# 2. Arrancar con node — necesita Node 22+ y `hermes` en el PATH.
+HERMES_HOME=$HOME/.hermes \
+NITRO_HOST=127.0.0.1 \
+NITRO_PORT=3000 \
+node .output/server/index.mjs
+```
+
+Para fijar versión: `gh release download v1.2.3 -p
+hermes-war-room.tar.gz`.
+
+### ¿Por qué un release y no `pnpm dev`?
+
+| | `pnpm dev` | tarball + node |
+|---|---|---|
+| Arranque en frío | ~5–10 s | ~300 ms |
+| HMR / live reload | ✅ | ❌ |
+| Memoria en idle | 400+ MB | ~80 MB |
+| Sobrevive a reboot | con tmux | systemd-friendly |
+| Bucle editar-probar | instantáneo | requiere re-release |
+
+Para desarrollar la sala: `pnpm dev`. Para *usarla* como servicio
+encendido: tarball.
 
 ### Mantenerlo corriendo entre sesiones de terminal
 

@@ -104,7 +104,101 @@ const feedLive = computed(() => {
   const s = currentTask.value?.status
   return props.open && (s === 'running' || s === 'blocked' || s === 'ready' || s === 'todo')
 })
-const { feed: taskFeed, loading: taskFeedLoading } = useTaskFeed(feedTaskId, feedLive)
+const { feed: taskFeed, loading: taskFeedLoading, refresh: refreshFeed } = useTaskFeed(feedTaskId, feedLive)
+
+interface FullLog {
+  taskId: string
+  exists: boolean
+  bytes: number | null
+  startedAt: number | null
+  lastActivityAt: number | null
+  truncated: boolean
+  content: string | null
+}
+const fullLog = ref<FullLog | null>(null)
+const fullLogLoading = ref(false)
+const logExpanded = ref(false)
+
+async function loadFullLog() {
+  if (!feedTaskId.value) return
+  fullLogLoading.value = true
+  try {
+    fullLog.value = await $fetch<FullLog>(`/api/kanban/tasks/${feedTaskId.value}/log`)
+  } catch (e) {
+    console.error('full log load failed', e)
+  } finally {
+    fullLogLoading.value = false
+  }
+}
+
+function onLogToggle(open: boolean) {
+  logExpanded.value = open
+  if (open && !fullLog.value) loadFullLog()
+}
+
+/* Reset the full-log cache when the task changes — otherwise we'd show the
+   prior task's log under the new task's header. */
+watch(feedTaskId, () => {
+  fullLog.value = null
+  logExpanded.value = false
+})
+
+const logTailEl = ref<HTMLPreElement | null>(null)
+/* Auto-stick to the bottom of the log when new content arrives (most natural
+   for tailing a running worker). If the user has scrolled UP to read history,
+   we don't yank them back — only auto-scroll when they were already near the
+   bottom (within 64 px). */
+function scrollLogToBottom(force = false) {
+  const el = logTailEl.value
+  if (!el) return
+  if (!force) {
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (distanceFromBottom > 64) return
+  }
+  el.scrollTop = el.scrollHeight
+}
+watch(
+  () => fullLog.value?.content ?? taskFeed.value?.logTail ?? '',
+  () => nextTick(() => scrollLogToBottom())
+)
+watch(logExpanded, (open) => {
+  if (open) nextTick(() => scrollLogToBottom(true))
+})
+
+const toast = useToast()
+const killing = ref(false)
+const confirmKill = ref(false)
+
+async function killTask() {
+  if (!currentTask.value) return
+  killing.value = true
+  try {
+    const id = currentTask.value.id
+    const res = await $fetch<{ workersKilled: number[], archived: boolean }>(
+      `/api/kanban/tasks/${id}/kill`,
+      { method: 'POST', body: { reason: 'killed via war-room' } }
+    )
+    toast.add({
+      title: t('warRoom.detail.taskKilled'),
+      description: `pids: ${res.workersKilled.join(', ') || '—'} · archived: ${res.archived}`,
+      color: 'primary',
+      icon: 'i-lucide-skull'
+    })
+    confirmKill.value = false
+    /* The kanban poll picks up the new status within a tick; nudge the feed
+       endpoint too so token totals settle. */
+    await refreshFeed()
+  } catch (e) {
+    const err = e as { data?: { message?: string }, message?: string }
+    toast.add({
+      title: t('warRoom.detail.taskKillFailed'),
+      description: err.data?.message ?? err.message,
+      color: 'error'
+    })
+  } finally {
+    killing.value = false
+  }
+}
 
 const visibleMessages = computed(() =>
   (taskFeed.value?.messages ?? []).filter(m => m.role !== 'system')
@@ -139,6 +233,20 @@ function shortTimeFromSec(unixSec: number | null): string {
   if (unixSec === null) return ''
   return shortTime(unixSec * 1000)
 }
+
+/** Human-readable duration since a unix-ms timestamp. */
+function humanDuration(unixMs: number): string {
+  const totalS = Math.max(0, Math.floor((Date.now() - unixMs) / 1000))
+  if (totalS < 60) return `${totalS}s`
+  const m = Math.floor(totalS / 60)
+  if (m < 60) return `${m}m ${totalS % 60}s`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ${m % 60}m`
+  const d = Math.floor(h / 24)
+  return `${d}d ${h % 24}h`
+}
+
+const fmtCost = (n: number) => n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`
 </script>
 
 <template>
@@ -309,17 +417,73 @@ function shortTimeFromSec(unixSec: number | null): string {
               <span class="live-pip-dot" />
               {{ t('warRoom.detail.live') }}
             </span>
-            <span
-              v-if="taskFeed?.totals"
-              class="feed-totals"
-              :title="t('warRoom.detail.taskFeedTotalsTitle', {
-                input: fmt(taskFeed.totals.inputTokens),
-                output: fmt(taskFeed.totals.outputTokens)
-              })"
-            >
-              {{ taskFeed.totals.messageCount }} · {{ fmt(taskFeed.totals.inputTokens + taskFeed.totals.outputTokens) }} tok
-            </span>
           </h3>
+
+          <!-- Always-visible meta strip: duration, session id, token chips. -->
+          <div
+            v-if="taskFeed"
+            class="feed-meta"
+          >
+            <span
+              v-if="taskFeed.startedAt"
+              class="feed-meta-chip"
+              :title="new Date(taskFeed.startedAt).toLocaleString()"
+            >
+              <UIcon
+                name="i-lucide-timer"
+                class="size-3"
+              />
+              {{ t('warRoom.detail.taskFeedDuration', { duration: humanDuration(taskFeed.startedAt) }) }}
+            </span>
+            <span
+              v-if="taskFeed.sessionId"
+              class="feed-meta-chip feed-meta-chip--mono"
+              :title="t('warRoom.detail.taskFeedSession') + ': ' + taskFeed.sessionId"
+            >
+              <UIcon
+                name="i-lucide-fingerprint"
+                class="size-3"
+              />
+              {{ taskFeed.sessionId.slice(-12) }}
+            </span>
+          </div>
+
+          <!-- Token breakdown — input / output / cache / cost as inline chips. -->
+          <div
+            v-if="taskFeed?.totals"
+            class="feed-tokens"
+          >
+            <span class="feed-token feed-token--in">
+              <span class="feed-token-label">{{ t('warRoom.detail.tokenInput') }}</span>
+              <span class="feed-token-value">{{ fmt(taskFeed.totals.inputTokens) }}</span>
+            </span>
+            <span class="feed-token feed-token--out">
+              <span class="feed-token-label">{{ t('warRoom.detail.tokenOutput') }}</span>
+              <span class="feed-token-value">{{ fmt(taskFeed.totals.outputTokens) }}</span>
+            </span>
+            <span
+              v-if="taskFeed.totals.cacheReadTokens"
+              class="feed-token feed-token--cache"
+            >
+              <span class="feed-token-label">{{ t('warRoom.detail.tokenCacheRead') }}</span>
+              <span class="feed-token-value">{{ fmt(taskFeed.totals.cacheReadTokens) }}</span>
+            </span>
+            <span
+              v-if="taskFeed.totals.cacheWriteTokens"
+              class="feed-token feed-token--cache"
+            >
+              <span class="feed-token-label">{{ t('warRoom.detail.tokenCacheWrite') }}</span>
+              <span class="feed-token-value">{{ fmt(taskFeed.totals.cacheWriteTokens) }}</span>
+            </span>
+            <span
+              v-if="taskFeed.totals.estimatedCostUsd > 0"
+              class="feed-token feed-token--cost"
+            >
+              <span class="feed-token-label">{{ t('warRoom.detail.tokenCost') }}</span>
+              <span class="feed-token-value">{{ fmtCost(taskFeed.totals.estimatedCostUsd) }}</span>
+            </span>
+          </div>
+
           <p
             v-if="taskFeedLoading && !taskFeed"
             class="empty"
@@ -332,20 +496,8 @@ function shortTimeFromSec(unixSec: number | null): string {
           >
             {{ t('warRoom.detail.taskFeedNotStarted') }}
           </p>
-          <p
-            v-else-if="!taskFeed.sessionId"
-            class="empty"
-          >
-            {{ t('warRoom.detail.taskFeedNoSession') }}
-          </p>
-          <p
-            v-else-if="!visibleMessages.length"
-            class="empty"
-          >
-            {{ t('warRoom.detail.taskFeedEmpty') }}
-          </p>
           <ul
-            v-else
+            v-else-if="visibleMessages.length"
             class="feed-list"
           >
             <li
@@ -386,6 +538,158 @@ function shortTimeFromSec(unixSec: number | null): string {
               >{{ m.content }}</pre>
             </li>
           </ul>
+          <p
+            v-else-if="taskFeed && !taskFeed.sessionId && !taskFeed.logTail"
+            class="empty"
+          >
+            {{ t('warRoom.detail.taskFeedNoSession') }}
+          </p>
+          <p
+            v-else-if="taskFeed && !visibleMessages.length && !taskFeed.logTail"
+            class="empty"
+          >
+            {{ t('warRoom.detail.taskFeedEmpty') }}
+          </p>
+
+          <!-- Worker log. Collapsed by default when there's a structured feed,
+               auto-expanded when state.db is empty so the user always has
+               something to read. The summary is the toggle; expanding fires
+               loadFullLog() so we don't ship MBs in every poll. -->
+          <details
+            v-if="taskFeed?.logTail || taskFeed?.started"
+            class="feed-log"
+            :open="!visibleMessages.length || logExpanded"
+            @toggle="onLogToggle(($event.target as HTMLDetailsElement).open)"
+          >
+            <summary class="feed-log-summary">
+              <UIcon
+                name="i-lucide-terminal"
+                class="size-3.5"
+              />
+              <span>{{ t('warRoom.detail.taskFeedLog') }}</span>
+              <span
+                v-if="(fullLog?.bytes ?? taskFeed?.logBytes) !== null && (fullLog?.bytes ?? taskFeed?.logBytes) !== undefined"
+                class="feed-log-size"
+              >{{ fmt(Math.round(((fullLog?.bytes ?? taskFeed?.logBytes) as number) / 1024)) }} KB</span>
+            </summary>
+
+            <div
+              v-if="taskFeed?.startedAt && taskFeed?.lastActivityAt"
+              class="feed-log-span"
+            >
+              <UIcon
+                name="i-lucide-clock"
+                class="size-3"
+              />
+              {{ t('warRoom.detail.taskFeedLogSpan', {
+                from: new Date(taskFeed.startedAt).toLocaleTimeString(),
+                to:   new Date(taskFeed.lastActivityAt).toLocaleTimeString()
+              }) }}
+              <span class="feed-log-span-sep">·</span>
+              {{ t('warRoom.detail.taskFeedLastActivity', {
+                ago: humanDuration(taskFeed.lastActivityAt)
+              }) }}
+              <button
+                type="button"
+                class="feed-log-reload"
+                :disabled="fullLogLoading"
+                @click="loadFullLog"
+              >
+                <UIcon
+                  name="i-lucide-refresh-cw"
+                  class="size-3"
+                  :class="{ 'feed-log-reload-spin': fullLogLoading }"
+                />
+                {{ t('warRoom.detail.taskFeedLogReload') }}
+              </button>
+            </div>
+
+            <p
+              v-if="fullLog?.truncated && fullLog?.bytes"
+              class="feed-log-hint"
+            >
+              {{ t('warRoom.detail.taskFeedLogTruncated', {
+                bytes: fmt(Math.round((fullLog.content?.length ?? 0) / 1024)) + ' KB',
+                total: fmt(Math.round(fullLog.bytes / 1024)) + ' KB'
+              }) }}
+            </p>
+            <p
+              v-else-if="!fullLog && !fullLogLoading"
+              class="feed-log-hint"
+            >
+              {{ t('warRoom.detail.taskFeedLogHint') }}
+            </p>
+            <p
+              v-if="fullLogLoading && !fullLog"
+              class="feed-log-hint"
+            >
+              {{ t('warRoom.detail.taskFeedLogLoading') }}
+            </p>
+
+            <pre
+              ref="logTailEl"
+              class="feed-log-tail"
+            >{{ fullLog?.content ?? taskFeed?.logTail ?? '' }}</pre>
+          </details>
+
+          <!-- Kill button. Only meaningful while the worker is alive. -->
+          <div
+            v-if="currentTask && (currentTask.status === 'running' || currentTask.status === 'blocked')"
+            class="feed-kill"
+          >
+            <button
+              v-if="!confirmKill"
+              type="button"
+              class="feed-kill-btn"
+              :disabled="killing"
+              @click="confirmKill = true"
+            >
+              <UIcon
+                name="i-lucide-skull"
+                class="size-3.5"
+              />
+              <span>{{ t('warRoom.detail.taskKill') }}</span>
+            </button>
+            <div
+              v-else
+              class="feed-kill-confirm"
+            >
+              <p class="feed-kill-title">
+                {{ t('warRoom.detail.taskKillConfirmTitle', { id: currentTask.id }) }}
+              </p>
+              <p class="feed-kill-body">
+                {{ t('warRoom.detail.taskKillConfirmBody') }}
+              </p>
+              <div class="feed-kill-actions">
+                <button
+                  type="button"
+                  class="feed-kill-cancel"
+                  :disabled="killing"
+                  @click="confirmKill = false"
+                >
+                  {{ t('common.cancel') }}
+                </button>
+                <button
+                  type="button"
+                  class="feed-kill-confirm-btn"
+                  :disabled="killing"
+                  @click="killTask"
+                >
+                  <UIcon
+                    v-if="killing"
+                    name="i-lucide-loader"
+                    class="size-3.5 feed-kill-spin"
+                  />
+                  <UIcon
+                    v-else
+                    name="i-lucide-skull"
+                    class="size-3.5"
+                  />
+                  <span>{{ killing ? t('warRoom.detail.taskKilling') : t('warRoom.detail.taskKillConfirmAction') }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- Recent activity: rolling list of tool calls + thought fragments
@@ -736,6 +1040,263 @@ function shortTimeFromSec(unixSec: number | null): string {
   color: rgba(40, 36, 26, 0.6);
   cursor: help;
 }
+
+/* Meta strip: duration + session id, sits between the section title and the
+   token chips. */
+.feed-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 8px;
+}
+.feed-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: rgba(40, 36, 26, 0.05);
+  border: 1px solid rgba(40, 36, 26, 0.16);
+  border-radius: 2px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: rgba(40, 36, 26, 0.78);
+}
+.feed-meta-chip--mono {
+  letter-spacing: 0.02em;
+}
+
+/* Token breakdown — input/output/cache/cost. Each chip has a small label on
+   top-line, a number underneath, a thin colored left border so the eye reads
+   the four/five values as a row of meters. */
+.feed-tokens {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 4px;
+  margin: 0 0 12px;
+}
+.feed-token {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 8px;
+  background: rgba(255, 252, 240, 0.6);
+  border: 1px solid rgba(28, 26, 20, 0.14);
+  border-left-width: 3px;
+  border-radius: 2px;
+  font-family: 'IBM Plex Mono', monospace;
+  min-width: 0;
+}
+.feed-token--in    { border-left-color: #2f5a2f; }
+.feed-token--out   { border-left-color: #c8421f; }
+.feed-token--cache { border-left-color: #6b6555; }
+.feed-token--cost  { border-left-color: #8a5a14; }
+.feed-token-label {
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(40, 36, 26, 0.55);
+}
+.feed-token-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(28, 26, 20, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Raw log tail. Folded by default when there's structured feed; opens up
+   when the worker has only emitted log lines so far. */
+.feed-log {
+  margin-top: 6px;
+  border: 1px solid rgba(40, 36, 26, 0.18);
+  border-radius: 3px;
+  background: #1c1a14;
+  color: #e6dfc8;
+}
+.feed-log-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: #f3a93b;
+  list-style: none;
+}
+.feed-log-summary::-webkit-details-marker { display: none; }
+.feed-log-summary::before {
+  content: '▸';
+  display: inline-block;
+  font-size: 10px;
+  color: #f3a93b;
+  transition: transform 0.12s ease;
+}
+.feed-log[open] .feed-log-summary::before {
+  transform: rotate(90deg);
+}
+.feed-log-size {
+  margin-left: auto;
+  color: rgba(243, 169, 59, 0.6);
+  letter-spacing: 0.05em;
+}
+.feed-log-hint {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  font-size: 11px;
+  color: rgba(230, 223, 200, 0.55);
+  margin: 0;
+  padding: 0 12px 4px;
+  line-height: 1.35;
+}
+.feed-log-tail {
+  margin: 0;
+  padding: 8px 12px 12px;
+  background: transparent;
+  color: #e6dfc8;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* Log timing strip — sits between the summary and the log body. Shows the
+   timestamp range of the file (we can't add per-line timestamps without
+   instrumenting hermes, but the file's birth/mtime gives the user the
+   bracketing window). */
+.feed-log-span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: rgba(243, 169, 59, 0.78);
+}
+.feed-log-span-sep {
+  opacity: 0.4;
+}
+.feed-log-reload {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid rgba(243, 169, 59, 0.32);
+  border-radius: 2px;
+  font: inherit;
+  color: rgba(243, 169, 59, 0.85);
+  cursor: pointer;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 9px;
+}
+.feed-log-reload:hover:not(:disabled) {
+  background: rgba(243, 169, 59, 0.08);
+  border-color: rgba(243, 169, 59, 0.6);
+}
+.feed-log-reload:disabled { opacity: 0.5; cursor: not-allowed; }
+.feed-log-reload-spin {
+  animation: feedlog-spin 1s linear infinite;
+}
+@keyframes feedlog-spin { to { transform: rotate(360deg); } }
+
+/* Kill control. Quiet skull link until the user clicks it; flips to a red
+   confirmation strip with the consequences spelled out. */
+.feed-kill {
+  margin-top: 10px;
+}
+.feed-kill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid rgba(40, 36, 26, 0.22);
+  border-radius: 2px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(40, 36, 26, 0.65);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.feed-kill-btn:hover:not(:disabled) {
+  background: rgba(200, 66, 31, 0.08);
+  border-color: rgba(200, 66, 31, 0.6);
+  color: #c8421f;
+}
+.feed-kill-confirm {
+  background: rgba(200, 66, 31, 0.08);
+  border: 1px solid rgba(200, 66, 31, 0.5);
+  border-radius: 3px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.feed-kill-title {
+  margin: 0;
+  font-family: 'Antonio', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #c8421f;
+}
+.feed-kill-body {
+  margin: 0;
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: rgba(40, 36, 26, 0.78);
+}
+.feed-kill-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.feed-kill-cancel,
+.feed-kill-confirm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 2px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.feed-kill-cancel {
+  background: transparent;
+  border: 1px solid rgba(40, 36, 26, 0.22);
+  color: rgba(40, 36, 26, 0.65);
+}
+.feed-kill-confirm-btn {
+  background: #c8421f;
+  border: 1px solid #c8421f;
+  color: #f4efe2;
+  font-weight: 600;
+}
+.feed-kill-confirm-btn:hover:not(:disabled) {
+  background: #a83716;
+}
+.feed-kill-cancel:disabled, .feed-kill-confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.feed-kill-spin { animation: feedlog-spin 1s linear infinite; }
 
 /* Task feed: chronological worker activity. Roles get distinct treatments —
    user (the kanban prompt) calmer, assistant (the worker speaking) primary,

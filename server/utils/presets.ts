@@ -25,8 +25,8 @@ export interface ProfilePreset {
 
 const TOOLS_ORCHESTRATOR = ['terminal', 'skills', 'todo', 'memory', 'clarify', 'messaging']
 const TOOLS_WORKER = ['terminal', 'file', 'code_execution', 'skills', 'todo', 'memory']
-const TOOLS_RESEARCH = ['terminal', 'file', 'web', 'browser', 'skills', 'todo', 'memory']
-const TOOLS_LIGHT = ['terminal', 'file', 'skills', 'todo', 'memory']
+const TOOLS_RESEARCH = ['terminal', 'file', 'code_execution', 'web', 'browser', 'skills', 'todo', 'memory']
+const TOOLS_LIGHT = ['terminal', 'file', 'code_execution', 'skills', 'todo', 'memory']
 
 export const PRESETS: ProfilePreset[] = [
   {
@@ -328,7 +328,7 @@ You execute documentation tasks: docs, specs, ADRs, handoffs, READMEs, release n
 - Never publish docs that contradict the running system — verify behavior first.
 `,
     tools: TOOLS_LIGHT,
-    skills: ['hermes-agent-skill-authoring', 'writing-plans', 'obsidian-markdown']
+    skills: ['hermes-agent-skill-authoring', 'writing-plans', 'obsidian-markdown', 'obsidian']
   },
 
   {

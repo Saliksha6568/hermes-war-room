@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml, parseDocument as parseYamlDocument, isMap, isScalar } from 'yaml'
+import type { YAMLMap } from 'yaml'
 
 export interface ProfileConfigSlice {
   /** model.default — the model string Hermes resolves through its model registry. */
@@ -49,32 +50,36 @@ export interface ProfileConfigPatch {
  */
 export function writeProfileConfig(profileDir: string, patch: ProfileConfigPatch): void {
   const path = configPath(profileDir)
-  if (!existsSync(path)) {
-    throw new Error(`Profile config not found at ${path}`)
-  }
-  const raw = readFileSync(path, 'utf8')
+  /* Fresh hires (hermes profile create without --clone) ship without a
+     config.yaml. Start from an empty document so the first patch creates
+     the file rather than failing. */
+  const raw = existsSync(path) ? readFileSync(path, 'utf8') : ''
   const doc = parseYamlDocument(raw)
 
   if ('model' in patch || 'provider' in patch) {
-    if (!doc.has('model')) doc.set('model', {})
-    const modelNode = doc.get('model', true)
-    if (!isMap(modelNode)) {
+    /* If `model:` exists but is a scalar/sequence (malformed user config),
+       refuse to silently overwrite. Otherwise rely on setIn/deleteIn —
+       they create the intermediate map for fresh/empty documents and
+       leave existing maps intact, which avoids the brittle "create empty
+       object then re-fetch as YAMLMap" dance. */
+    const existing = doc.get('model', true) as YAMLMap | undefined | null
+    if (existing != null && !isMap(existing)) {
       throw new Error('model: section in config.yaml is not a mapping')
     }
     if ('model' in patch) {
       const v = patch.model
       if (v === null || v === undefined || v === '') {
-        if (modelNode.has('default')) modelNode.delete('default')
+        if (doc.hasIn(['model', 'default'])) doc.deleteIn(['model', 'default'])
       } else {
-        modelNode.set('default', v)
+        doc.setIn(['model', 'default'], v)
       }
     }
     if ('provider' in patch) {
       const v = patch.provider
       if (v === null || v === undefined || v === '') {
-        if (modelNode.has('provider')) modelNode.delete('provider')
+        if (doc.hasIn(['model', 'provider'])) doc.deleteIn(['model', 'provider'])
       } else {
-        modelNode.set('provider', v)
+        doc.setIn(['model', 'provider'], v)
       }
     }
   }

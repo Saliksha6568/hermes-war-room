@@ -16,6 +16,9 @@ const props = defineProps<{
   manageLabel?: string
   /** Disable the manage button (e.g. while loading). */
   disabled?: boolean
+  /** Hide the Manage button entirely — for read-only/placeholder cards
+   *  (e.g. MCPs in the Hire flow, where you can't manage them yet). */
+  noManage?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -44,6 +47,7 @@ const summary = computed(() => {
         <span class="cap-card-count">{{ summary }}</span>
       </div>
       <button
+        v-if="!noManage"
         type="button"
         class="cap-card-manage"
         :disabled="disabled"

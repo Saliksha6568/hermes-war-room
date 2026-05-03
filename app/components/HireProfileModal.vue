@@ -538,6 +538,7 @@ async function submit() {
                     v-model="model"
                     :items="modelMenuItems"
                     value-key="value"
+                    :placeholder="t('profileConfig.providerPlaceholder')"
                     :search-input="{ placeholder: t('profileConfig.modelSearch') }"
                     :create-item="catalogLoaded ? 'always' : false"
                     class="w-full"
@@ -584,13 +585,13 @@ async function submit() {
                 @manage="skillsModalOpen = true"
               />
 
-              <p class="dossier-note">
-                <UIcon
-                  name="i-lucide-info"
-                  class="size-3.5"
-                />
-                {{ t('hire.noteAfterCreate') }}
-              </p>
+              <CapabilityCard
+                :label="t('mcp.title')"
+                icon="i-lucide-plug"
+                :items="[]"
+                :empty-text="t('hire.noteAfterCreate')"
+                no-manage
+              />
             </section>
           </div>
         </div>
@@ -977,6 +978,54 @@ async function submit() {
   display: flex;
   align-items: flex-start;
   gap: 6px;
+}
+
+/* Model picker row layout — must mirror the same rules in
+   RetrainProfileModal.vue. Provider tag floats right; "recommended" / "free"
+   badges sit between id and provider so the eye reads each entry as
+   `id  [badge]  PROVIDER`. Without this, the spans collapse together and the
+   id text reads as concatenated to the provider (e.g. "qwen3.6custom"). */
+.model-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.model-row-id {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.model-row-provider {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  flex-shrink: 0;
+}
+.model-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.model-badge--rec {
+  background: rgba(200, 66, 31, 0.12);
+  color: var(--hot);
+  border: 1px solid rgba(200, 66, 31, 0.3);
+}
+.model-badge--free {
+  background: rgba(243, 169, 59, 0.16);
+  color: #8a5a14;
+  border: 1px solid rgba(243, 169, 59, 0.4);
 }
 
 /* Compact form-field help text + uppercase mono labels. `help` renders below

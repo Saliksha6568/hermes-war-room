@@ -20,9 +20,13 @@
     "title": "Sala de Guerra de Orquestación",
     "errorTitle": "No se pudieron cargar los perfiles",
     "empty": "No se encontraron perfiles de Hermes en {dir}.",
-    "operativesCount": "nadie operativo | 1 operativo | {count} operativos",
+    "operativesCount": "sin operativos | 1 operativo | {count} operativos",
     "stationLabel": "Puesto {num}",
     "operationsFloor": "Sala de Operaciones",
+    "missionScope": "Ámbito de la misión",
+    "globalScope": "Todas las tareas",
+    "scopeToggle": "Ver todas las tareas",
+    "scopeToggleMission": "Limitar a la misión",
     "detail": {
       "title": "Expediente del operativo",
       "currentTask": "Tarea actual",
@@ -43,7 +47,28 @@
       "taskFeedNoSession": "Worker arrancado pero el session ID aún no se ha registrado en el log.",
       "taskFeedEmpty": "Aún no hay mensajes registrados.",
       "taskFeedReasoning": "Razonamiento",
-      "taskFeedTotalsTitle": "Entrada: {input} tokens · Salida: {output} tokens"
+      "taskFeedTotalsTitle": "Entrada: {input} tokens · Salida: {output} tokens",
+      "taskFeedLog": "Salida del worker",
+      "taskFeedLogHint": "Mostrando el log crudo del worker — útil cuando state.db aún no ha alcanzado.",
+      "taskFeedLogSpan": "{from} → {to}",
+      "taskFeedLastActivity": "última escritura hace {ago}",
+      "taskFeedLogTruncated": "Mostrando los últimos {bytes} de {total} (truncado).",
+      "taskFeedLogLoading": "Cargando log completo…",
+      "taskFeedLogReload": "Recargar",
+      "taskKill": "Matar tarea",
+      "taskKillConfirmTitle": "¿Matar la tarea {id}?",
+      "taskKillConfirmBody": "Termina el proceso del worker (SIGTERM) y archiva la tarea para que desaparezca del tablero activo. Recuperable vía `hermes kanban` si necesitas inspeccionarla después.",
+      "taskKillConfirmAction": "Matar",
+      "taskKilling": "Matando…",
+      "taskKilled": "Tarea matada",
+      "taskKillFailed": "No se pudo matar la tarea",
+      "taskFeedSession": "Sesión",
+      "taskFeedDuration": "Lleva ejecutándose {duration}",
+      "tokenInput": "entrada",
+      "tokenOutput": "salida",
+      "tokenCacheRead": "caché lectura",
+      "tokenCacheWrite": "caché escritura",
+      "tokenCost": "coste"
     },
     "history": {
       "title": "Archivo de misiones",
@@ -129,20 +154,20 @@
     "title": "Alta de operativo",
     "subtitle": "Elige un preset, edita el expediente, despliega.",
     "presetSection": "Rol",
-    "presetHint": "Cada preset rellena identidad, reglas, herramientas y skills. Puedes ajustar todo antes de contratar.",
+    "presetHint": "Cada preset rellena identidad, reglas, herramientas y habilidades. Puedes ajustar todo antes de contratar.",
     "briefingSection": "Briefing",
     "capabilitiesSection": "Capacidades",
     "nameLabel": "Slug del perfil",
     "namePlaceholder": "ej. investigador",
-    "nameHint": "Solo minúsculas y números — se usa como assignee en kanban.",
+    "nameHint": "Solo minúsculas y números — se usa como destinatario de tareas en el kanban.",
     "cloneLabel": "Clonar desde",
     "clonePlaceholder": "Empezar limpio",
     "cloneHint": "Opcional: hereda config.yaml + .env de un perfil existente. La identidad de abajo sobrescribe su SOUL.md.",
-    "noteAfterCreate": "Los servidores MCP y la auth del proveedor se configuran después de crear el perfil.",
-    "submit": "Desplegar",
-    "submitting": "Desplegando…",
-    "success": "{name} desplegado.",
-    "failure": "No se pudo desplegar el perfil"
+    "noteAfterCreate": "Los servidores MCP y la autenticación del proveedor se configuran después de crear el perfil.",
+    "submit": "Contratar",
+    "submitting": "Contratando…",
+    "success": "{name} contratado.",
+    "failure": "No se pudo contratar el perfil"
   },
   "presets": {
     "orchestrator": {
@@ -151,15 +176,15 @@
     },
     "builder": {
       "title": "Constructor",
-      "tagline": "Necesitas código de producto enviado con tests y prueba de build."
+      "tagline": "Necesitas entregar código de producto con tests y build verde."
     },
     "reviewer": {
       "title": "Revisor",
-      "tagline": "Necesitas revisión byte-verificada y listeza para merge."
+      "tagline": "Necesitas revisión rigurosa y verificación de que el cambio está listo para mergear."
     },
     "triage": {
       "title": "Triaje",
-      "tagline": "Necesitas issues y PRs puntuados, reproducidos, parcheados o preparados."
+      "tagline": "Necesitas priorizar issues y PRs: puntuarlos, reproducirlos y proponer la siguiente acción."
     },
     "lab": {
       "title": "Laboratorio",
@@ -175,19 +200,19 @@
     },
     "scribe": {
       "title": "Escriba",
-      "tagline": "Necesitas docs, specs, handoffs, higiene de skills, curaduría de memoria."
+      "tagline": "Necesitas docs, specs, handoffs o notas de release."
     },
     "foundation": {
       "title": "Cimientos",
-      "tagline": "Necesitas runtime, reparación, infra, salud o trabajo de ciclo de vida."
+      "tagline": "Necesitas tareas de infra, runtime, reparaciones o ciclo de vida."
     },
     "qa": {
       "title": "QA",
-      "tagline": "Necesitas regresión, smoke, verificación esperado-vs-real."
+      "tagline": "Necesitas pruebas de regresión, smoke tests y verificación de comportamiento esperado vs. real."
     },
     "mirror": {
       "title": "Espejo de integraciones",
-      "tagline": "Necesitas sync upstream, integraciones o packs de assets."
+      "tagline": "Necesitas sincronización con upstream, integraciones o packs de assets."
     },
     "custom": {
       "title": "Personalizado",
@@ -221,12 +246,12 @@
   "soul": {
     "title": "Identidad",
     "hint": "Markdown libre que se guarda en SOUL.md dentro del perfil. Define quién es el agente y qué hace.",
-    "placeholder": "# Quién eres\n\n_No eres un chatbot. Estás convirtiéndote en alguien._\n\n¿Quién soy?\n\n- **Nombre:**\n- **Rol:**\n- **Vibra:**",
+    "placeholder": "# Quién eres\n\n_No eres un chatbot. Estás convirtiéndote en alguien._\n\n¿Quién soy?\n\n- **Nombre:**\n- **Rol:**\n- **Estilo:**",
     "loadFailed": "No se pudo cargar SOUL.md"
   },
   "mcp": {
     "title": "Servidores MCP",
-    "hint": "Fuentes remotas de herramientas conectadas a este perfil. Los que fallan ralentizan el cold start (3 reintentos, ~7s perdidos) — quita los que este perfil no use.",
+    "hint": "Fuentes remotas de herramientas conectadas a este perfil. Los servidores que fallan ralentizan el arranque en frío (3 reintentos, ~7s perdidos) — quita los que este perfil no use.",
     "loading": "Cargando servidores MCP…",
     "loadFailed": "No se pudieron cargar los servidores MCP",
     "empty": "Este perfil no tiene servidores MCP configurados.",
@@ -255,7 +280,7 @@
   },
   "rename": {
     "label": "Slug del perfil",
-    "help": "Letras minúsculas y números. Renombra el perfil de Hermes y reapunta a los workers al nuevo id.",
+    "help": "Letras minúsculas y números. Renombra el perfil de Hermes y redirige a los workers al nuevo identificador.",
     "blockedDefault": "El perfil por defecto no se puede renombrar.",
     "invalid": "El slug solo puede contener letras minúsculas y números.",
     "renaming": "Renombrando…",
@@ -269,7 +294,7 @@
     "confirmAction": "Despedir",
     "submitting": "Despidiendo…",
     "success": "{name} despedido",
-    "failure": "No se pudo despedir al perfil",
+    "failure": "No se pudo despedir al operativo",
     "blockedDefault": "El perfil por defecto no se puede despedir."
   },
   "profileConfig": {
@@ -284,8 +309,8 @@
     "modelFree": "gratis",
     "modelCurrent": "actual",
     "provider": "Proveedor",
-    "providerHint": "Proveedor de inferencia (`anthropic`, `openai`, `custom`, …). Deja vacío para usar el default del modelo.",
-    "providerPlaceholder": "auto",
+    "providerHint": "Proveedor de inferencia (`anthropic`, `openai`, `custom`, …). Déjalo vacío para heredar del config global de Hermes.",
+    "providerPlaceholder": "(global de Hermes)",
     "allowlist": "Comandos peligrosos pre-aprobados",
     "allowlistHint": "Los comandos que coincidan con estas descripciones de patrones peligrosos saltan el prompt de aprobación del usuario. Para un orquestador, déjalo VACÍO para que cosas como `python3 -c` se denieguen automáticamente.",
     "allowlistEmpty": "Sin pre-aprobaciones — cada comando peligroso pasará por el callback de permisos (que el war-room deniega por defecto).",

@@ -7,7 +7,30 @@ const { data: profiles, status, error, refresh } = await useFetch<Profile[]>('/a
 // Home is the live operations floor — only active operatives are on duty here.
 const activeProfiles = computed(() => (profiles.value ?? []).filter(p => p.active))
 
-const { tasks, taskByAssignee, dispatcherStale } = useKanbanTasks()
+/* Mission stream — singleton; MissionPanel is the writer. We read the active
+   mission's id so the kanban poll can scope the floor to its tasks. */
+const missionStream = useMissionStream()
+
+/* When this is true (default), the floor only shows tasks tied to the active
+   mission via `mission_watched_tasks`. Toggle off to see every task across
+   every mission (the global view). Persisted to localStorage so the choice
+   sticks across reloads. */
+const scopeToMission = useState<boolean>('warroom.scopeToMission', () => {
+  if (import.meta.client) {
+    const v = localStorage.getItem('warroom.scopeToMission')
+    if (v !== null) return v === '1'
+  }
+  return true
+})
+watch(scopeToMission, (v) => {
+  if (import.meta.client) localStorage.setItem('warroom.scopeToMission', v ? '1' : '0')
+})
+
+const activeMissionId = computed(() =>
+  scopeToMission.value ? (missionStream.mission.value?.id ?? null) : null
+)
+
+const { tasks, taskByAssignee, dispatcherStale } = useKanbanTasks(activeMissionId)
 
 const { usage: tokenUsage } = useTokenUsage()
 
@@ -37,7 +60,6 @@ function onSelect(p: Profile) {
 // reactive state that MissionPanel mutates. We read three things from it:
 //   - busySlug: which orchestrator is mid-turn (drives bubble + ticker).
 //   - lastStep: latest tool call or thought fragment (feeds the ticker).
-const missionStream = useMissionStream()
 const busySlug = computed(() => {
   if (!missionStream.streaming.value) return null
   return missionStream.mission.value?.orchestratorSlug ?? null
@@ -111,6 +133,20 @@ const clock = computed(() => {
           <span class="strip-meta">
             {{ t('warRoom.operativesCount', { count: activeProfiles.length }, activeProfiles.length) }}
           </span>
+          <button
+            v-if="missionStream.mission.value"
+            type="button"
+            class="strip-scope"
+            :class="{ 'strip-scope--mission': scopeToMission, 'strip-scope--global': !scopeToMission }"
+            :title="scopeToMission ? t('warRoom.scopeToggle') : t('warRoom.scopeToggleMission')"
+            @click="scopeToMission = !scopeToMission"
+          >
+            <UIcon
+              :name="scopeToMission ? 'i-lucide-target' : 'i-lucide-globe'"
+              class="size-3"
+            />
+            {{ scopeToMission ? t('warRoom.missionScope') : t('warRoom.globalScope') }}
+          </button>
           <ClientOnly>
             <span class="strip-clock">{{ clock }}</span>
             <template #fallback>
@@ -286,6 +322,40 @@ const clock = computed(() => {
   color: #8a4a08;
   font-weight: 600;
   letter-spacing: 0.18em;
+}
+
+/* Scope toggle. Mission-scoped is the default and reads "calmly engaged"
+   (amber); global is loud (hot red) so the user always knows when they're
+   looking at unfiltered task soup. */
+.strip-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.strip-scope--mission {
+  background: rgba(243, 169, 59, 0.12);
+  border: 1px solid rgba(243, 169, 59, 0.55);
+  color: #8a5a14;
+}
+.strip-scope--mission:hover {
+  background: rgba(243, 169, 59, 0.22);
+}
+.strip-scope--global {
+  background: rgba(200, 66, 31, 0.1);
+  border: 1px solid rgba(200, 66, 31, 0.55);
+  color: #c8421f;
+}
+.strip-scope--global:hover {
+  background: rgba(200, 66, 31, 0.22);
 }
 
 .floor-grid {
