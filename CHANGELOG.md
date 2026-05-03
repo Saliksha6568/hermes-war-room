@@ -1,3 +1,9 @@
+## [1.1.1](https://github.com/Naroh091/hermes-war-room/compare/v1.1.0...v1.1.1) (2026-05-03)
+
+### Bug Fixes
+
+* toggle to inherit global model, copy from default ([2fad172](https://github.com/Naroh091/hermes-war-room/commit/2fad172c47c8948a1f39b22116f186373a63c9b0))
+
 ## [1.1.0](https://github.com/Naroh091/hermes-war-room/compare/v1.0.0...v1.1.0) (2026-05-03)
 
 ### Features
