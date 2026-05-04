@@ -7,16 +7,24 @@ defineProps<{
 
 <template>
   <header class="page-head">
-    <div class="page-head-text">
-      <h1 class="page-head-title">
-        {{ title }}
-      </h1>
-      <p
-        v-if="subtitle"
-        class="page-head-subtitle"
+    <div class="page-head-left">
+      <div class="page-head-text">
+        <h1 class="page-head-title">
+          {{ title }}
+        </h1>
+        <p
+          v-if="subtitle"
+          class="page-head-subtitle"
+        >
+          {{ subtitle }}
+        </p>
+      </div>
+      <div
+        v-if="$slots.leadingActions"
+        class="page-head-actions page-head-actions--leading"
       >
-        {{ subtitle }}
-      </p>
+        <slot name="leadingActions" />
+      </div>
     </div>
     <div class="page-head-actions">
       <slot name="actions" />
@@ -37,6 +45,13 @@ defineProps<{
   /* Same engineered tick rule the topbar uses, mirrored on top so the page
      header reads as a continuation of the console aesthetic. */
   position: relative;
+}
+
+.page-head-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
 }
 
 .page-head-text {

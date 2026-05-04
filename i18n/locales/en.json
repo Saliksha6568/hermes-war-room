@@ -14,10 +14,13 @@
     "default": "default",
     "language": "Language",
     "manage": "Manage",
-    "done": "Done"
+    "done": "Done",
+    "forceDispatch": "Force dispatching",
+    "forceDispatchOk": "Dispatching forced",
+    "forceDispatchFailed": "Force dispatching failed"
   },
   "warRoom": {
-    "title": "Orchestration War Room",
+    "title": "Operations Room",
     "errorTitle": "Failed to load profiles",
     "empty": "No Hermes profiles found under {dir}.",
     "operativesCount": "no operatives | 1 operative | {count} operatives",

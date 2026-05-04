@@ -14,10 +14,13 @@
     "default": "predeterminado",
     "language": "Idioma",
     "manage": "Gestionar",
-    "done": "Listo"
+    "done": "Listo",
+    "forceDispatch": "Forzar dispatching",
+    "forceDispatchOk": "Dispatching forzado",
+    "forceDispatchFailed": "No se pudo forzar dispatching"
   },
   "warRoom": {
-    "title": "Sala de Guerra de Orquestación",
+    "title": "Sala de Operaciones",
     "errorTitle": "No se pudieron cargar los perfiles",
     "empty": "No se encontraron perfiles de Hermes en {dir}.",
     "operativesCount": "sin operativos | 1 operativo | {count} operativos",
@@ -133,7 +136,7 @@
       "boardEmpty": "El tablero está vacío — asigna una misión para empezar.",
       "col": {
         "todo": "Pendientes",
-        "ready": "Listas",
+        "ready": "Preparadas",
         "running": "En curso",
         "blocked": "Bloqueadas"
       },

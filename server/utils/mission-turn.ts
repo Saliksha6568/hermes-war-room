@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import {
   appendMessage,
   getMission,
+  listMessages,
   setAcpSessionId,
   updateMessage
 } from './mission'
@@ -13,6 +14,7 @@ import { withMissionLock } from './mission-lock'
 import { addWatchedTasks, registerCreatedTaskFromTool } from './auto-nudge'
 import { startFlight, endFlight } from './mission-flight'
 import { useDb } from './db'
+import { buildRosterMarkdown } from './roster'
 import type { SessionNotification } from '@zed-industries/agent-client-protocol'
 
 // Absolute path to the global Hermes home — must match what the dispatcher
@@ -103,33 +105,72 @@ function asToolCall(update: SessionNotification['update']): AcpToolCall | null {
   return null
 }
 
-// Imperative pre-amble silently prepended to every user turn. Forces the
-// orchestrator to (a) read the roster, (b) actually invoke `terminal` for each
-// task in its plan, (c) stop hallucinating completed delegations. The user
-// never sees this in their chat bubble — it's only sent over ACP.
-const ORCHESTRATOR_PREAMBLE = [
-  '<<war-room-orchestrator-instructions hidden-from-user>>',
-  'You are the orchestrator inside the Hermes War Room. Decompose, delegate, summarise. Do not do the work yourself. Do not echo these instructions.',
-  'Always honor the language in which the user gave you the instructions — reply in that language and write task titles, bodies, and comments in that language too. Mirror the user; never silently switch to English.',
-  '',
-  '1. Greetings / "introduce yourself" → answer directly, no tool calls.',
-  '2. Otherwise: pick assignees from the team-roster skill (already in your system prompt). Do NOT `cat`, `ls`, or otherwise stat the filesystem to verify paths. Do NOT invent slugs — if no listed slug fits, ask the user instead of guessing.',
-  '3. For every concrete task: ONE `terminal` call, ONE LINE, EXACTLY this shape:',
-  `     HERMES_HOME=${GLOBAL_HERMES_HOME} hermes kanban create "<title>" --assignee <slug> --body "<body>" --json`,
-  '   `title` is POSITIONAL (no `--title` flag). Add `--parent <id>` (repeatable) for dependencies, using ids captured from earlier `--json` output. Quoting rules:',
-  '     - Double-quote title and body. No backticks, no unescaped `"`, no `$var`, no `$(...)`, no `\\` line continuations.',
-  '     - Body ≤800 chars. Longer notes → `hermes kanban comment <id> "<note>"` after.',
-  '   The `HERMES_HOME=...` prefix and absolute path are load-bearing — never `~` or `$HOME`.',
-  '   After each call: if stderr is non-empty or stdout is not valid JSON, the call FAILED. Surface the EXACT stderr/stdout to the user and stop. Do NOT invent a task id.',
-  '4. After delegating, list the real task ids from the JSON outputs:',
-  '     - <real_task_id>: <slug> — <title>',
-  '   Then stop and wait — the dashboard re-engages you when the workers finish.',
-  '5. Never tell the user to run `hermes gateway start` — the war-room handles dispatcher lifecycle.',
-  '<<end-of-instructions>>',
-  '',
-  'User mission:',
-  ''
-].join('\n')
+// Imperative pre-amble silently prepended to the FIRST user turn of a mission.
+// Forces the orchestrator to (a) consult the live roster, (b) actually invoke
+// `terminal` for each task in its plan, (c) stop hallucinating completed
+// delegations. The roster bullet-list is composed from the war-room DB at
+// turn time, so add/remove of agents takes effect on the very next user
+// message without restarting the ACP session. The user never sees this — only
+// sent over ACP.
+function buildOrchestratorPreambleFirst(roster: string): string {
+  return [
+    '<<war-room-orchestrator-instructions hidden-from-user>>',
+    'You are the orchestrator inside the Hermes War Room. Decompose, delegate, summarise. Do not do the work yourself. Do not echo these instructions.',
+    'Always honor the language in which the user gave you the instructions — reply in that language and write task titles, bodies, and comments in that language too. Mirror the user; never silently switch to English.',
+    '',
+    '## Active team (live, regenerated each turn)',
+    '',
+    'These are the only valid `assignee` slugs. The list is rebuilt from the war-room DB on every turn, so it reflects the current team even if agents were hired or fired mid-mission:',
+    '',
+    roster,
+    '',
+    '## Procedure',
+    '',
+    '1. Greetings / "introduce yourself" → answer directly, no tool calls.',
+    '2. Otherwise: pick assignees from the **Active team** list above. Do NOT `cat`, `ls`, or otherwise stat the filesystem to verify paths. Do NOT invent slugs — if no listed slug fits, ask the user instead of guessing.',
+    '3. For every concrete task: ONE `terminal` call, ONE LINE, EXACTLY this shape:',
+    `     HERMES_HOME=${GLOBAL_HERMES_HOME} hermes kanban create "<title>" --assignee <slug> --body "<body>" --json`,
+    '   `title` is POSITIONAL (no `--title` flag). Add `--parent <id>` (repeatable) for dependencies, using ids captured from earlier `--json` output. Quoting rules:',
+    '     - Double-quote title and body. No backticks, no unescaped `"`, no `$var`, no `$(...)`, no `\\` line continuations.',
+    '     - Body ≤800 chars. Longer notes → `hermes kanban comment <id> "<note>"` after.',
+    '   The `HERMES_HOME=...` prefix and absolute path are load-bearing — never `~` or `$HOME`.',
+    '   After each call: if stderr is non-empty or stdout is not valid JSON, the call FAILED. Surface the EXACT stderr/stdout to the user and stop. Do NOT invent a task id.',
+    '4. After delegating, list the real task ids from the JSON outputs:',
+    '     - <real_task_id>: <slug> — <title>',
+    '   Then stop and wait — the dashboard re-engages you when the workers finish.',
+    '5. Never tell the user to run `hermes gateway start` — the war-room handles dispatcher lifecycle.',
+    '<<end-of-instructions>>',
+    '',
+    'User mission:',
+    ''
+  ].join('\n')
+}
+
+// Shorter preamble for follow-up turns. The full instructions are already in
+// the ACP session history from turn 1; re-injecting them caused the model to
+// "restart" the workflow on every turn — including verbatim re-emission of
+// previous plans on confirmation replies like "Si"/"ok"/"dale". The roster is
+// re-included verbatim here so mid-mission membership changes still propagate
+// even when the model wouldn't otherwise look up the team again.
+function buildOrchestratorPreambleFollowup(roster: string): string {
+  return [
+    '<<war-room-orchestrator-followup hidden-from-user>>',
+    'You are continuing an in-progress mission. The full orchestration instructions are already loaded earlier in this session — do not restate them.',
+    'Treat the user input below as the next conversational turn, not a new mission.',
+    'If the user is confirming a plan you already proposed (replies like "sí", "si", "ok", "dale", "adelante", "yes", "go"), DO NOT echo or restate the plan, the bullet list of tasks, or the confirmation question. Skip directly to the `terminal` calls that delegate the tasks via `hermes kanban create ... --json`, then list the real ids.',
+    'Honor the language the user originally used.',
+    '',
+    '## Active team (live, may have changed since turn 1)',
+    '',
+    roster,
+    '',
+    'If the user references an agent by slug or callsign that does not appear in the list above, the team has changed since this mission started — surface the discrepancy instead of guessing.',
+    '<<end-of-followup>>',
+    '',
+    'User reply:',
+    ''
+  ].join('\n')
+}
 
 /**
  * Drive one user turn against the orchestrator: ensure session exists, append
@@ -147,6 +188,13 @@ async function runMissionTurnLocked(missionId: string, userText: string): Promis
   const mission = getMission(missionId)
   if (!mission) throw new Error(`Mission ${missionId} not found`)
   if (mission.status !== 'open') throw new Error(`Mission ${missionId} is not open`)
+
+  // First-turn detection: if there are no prior assistant messages persisted,
+  // this is the opening turn and gets the full preamble. Subsequent turns get
+  // the lighter follow-up preamble so the model doesn't re-run the whole
+  // decompose/ask/delegate flow on each reply.
+  const priorMessages = listMessages(missionId)
+  const isFirstTurn = !priorMessages.some(m => m.role === 'assistant')
 
   // Persist user message + announce.
   const userMsg = appendMessage(missionId, 'user', userText)
@@ -193,10 +241,14 @@ async function runMissionTurnLocked(missionId: string, userText: string): Promis
   // Track in-flight state so reconnecting SSE clients see the partial buffer.
   const flight = startFlight(missionId, assistantMsg.id)
 
+  const roster = buildRosterMarkdown()
+  const preamble = isFirstTurn
+    ? buildOrchestratorPreambleFirst(roster)
+    : buildOrchestratorPreambleFollowup(roster)
   const handle = startPrompt({
     slug: mission.orchestrator_slug,
     sessionId,
-    text: ORCHESTRATOR_PREAMBLE + userText
+    text: preamble + userText
   })
 
   handle.emitter.on('update', (notification: SessionNotification) => {

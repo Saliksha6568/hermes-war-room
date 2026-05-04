@@ -79,6 +79,26 @@ watch(() => missionStream.mission.value?.id, (id) => {
 
 const { tasks, taskByAssignee, dispatcherStale } = useKanbanTasks(scopeMissionId)
 
+/* Floor ordering: operatives with live work float to the front, idle ones drop
+   to the back. Within each band we keep the original profile order so the
+   layout doesn't churn on every task transition. Bands:
+     0 — running                  (worker live, current step in progress)
+     1 — pending                  (ready/blocked/todo or any non-terminal status)
+     2 — idle                     (no current task) */
+function bandFor(status: string | undefined): number {
+  if (!status) return 2
+  if (status === 'running') return 0
+  if (status === 'done' || status === 'archived') return 2
+  return 1
+}
+const sortedActiveProfiles = computed(() => {
+  const list = (profiles.value ?? []).filter(p => p.active)
+  return list
+    .map((p, i) => ({ p, i, band: bandFor(taskByAssignee.value.get(p.slug)?.status) }))
+    .sort((a, b) => a.band - b.band || a.i - b.i)
+    .map(x => x.p)
+})
+
 const { usage: tokenUsage } = useTokenUsage()
 
 // Floor-wide singleton: the registry tracks every Workstation's screen
@@ -172,6 +192,39 @@ async function onNewMission() {
   }
 }
 
+/* Force-dispatch: kick `hermes kanban dispatch --json` server-side so the
+   gateway picks up `ready` tasks immediately instead of waiting for its next
+   tick. Useful when the dispatcher banner says "stale" or after editing a
+   profile's allowlist. */
+const dispatching = ref(false)
+async function onForceDispatch() {
+  if (dispatching.value) return
+  dispatching.value = true
+  try {
+    const res = await $fetch<{ ok: boolean, stderr: string, code: number }>(
+      '/api/kanban/dispatch',
+      { method: 'POST' }
+    )
+    if (res.ok) {
+      toast.add({ title: t('common.forceDispatchOk'), color: 'primary', icon: 'i-lucide-check' })
+    } else {
+      toast.add({
+        title: t('common.forceDispatchFailed'),
+        description: res.stderr.trim() || `code ${res.code}`,
+        color: 'error'
+      })
+    }
+  } catch (e) {
+    toast.add({
+      title: t('common.forceDispatchFailed'),
+      description: (e as Error).message,
+      color: 'error'
+    })
+  } finally {
+    dispatching.value = false
+  }
+}
+
 const scopeLabel = computed(() => {
   if (!scopeMissionId.value) return t('warRoom.scopeAll')
   const found = openMissions.value.find(m => m.id === scopeMissionId.value)
@@ -184,6 +237,18 @@ const scopeLabel = computed(() => {
 <template>
   <div class="page page--war-room page--locked">
     <PageHeader :title="t('warRoom.title')">
+      <template #leadingActions>
+        <UButton
+          v-if="missionStream.mission.value"
+          icon="i-lucide-archive"
+          size="sm"
+          variant="ghost"
+          color="neutral"
+          @click="onNewMission"
+        >
+          {{ t('mission.newMission') }}
+        </UButton>
+      </template>
       <template #actions>
         <USelectMenu
           :model-value="scopeMissionId ?? SENTINEL_ALL"
@@ -225,14 +290,13 @@ const scopeLabel = computed(() => {
           </template>
         </USelectMenu>
         <UButton
-          v-if="missionStream.mission.value"
-          icon="i-lucide-archive"
-          size="sm"
+          icon="i-lucide-zap"
           variant="ghost"
           color="neutral"
-          @click="onNewMission"
+          :loading="dispatching"
+          @click="onForceDispatch"
         >
-          {{ t('mission.newMission') }}
+          {{ t('common.forceDispatch') }}
         </UButton>
         <UButton
           icon="i-lucide-refresh-cw"
@@ -295,11 +359,11 @@ const scopeLabel = computed(() => {
         />
 
         <div
-          v-if="activeProfiles.length"
+          v-if="sortedActiveProfiles.length"
           class="floor-grid"
         >
           <Workstation
-            v-for="(p, i) in activeProfiles"
+            v-for="(p, i) in sortedActiveProfiles"
             :key="p.slug"
             :profile="p"
             :index="i"
