@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/Naroh091/hermes-war-room/compare/v1.2.0...v1.3.0) (2026-05-04)
+
+### Features
+
+* inject roaster in preamble, reorder working agents, allow manual dispatching ([8b5ec92](https://github.com/Naroh091/hermes-war-room/commit/8b5ec92c498e39064320a0bee9686730fd6bb12f))
+
 ## [1.2.0](https://github.com/Naroh091/hermes-war-room/compare/v1.1.1...v1.2.0) (2026-05-04)
 
 ### Features
