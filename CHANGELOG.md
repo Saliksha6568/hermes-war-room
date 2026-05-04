@@ -1,3 +1,17 @@
+## [1.2.0](https://github.com/Naroh091/hermes-war-room/compare/v1.1.1...v1.2.0) (2026-05-04)
+
+### Features
+
+* new modal for agent details, finished tasks kanban panel ([1bf6ff9](https://github.com/Naroh091/hermes-war-room/commit/1bf6ff93f1fb09f2743bef6b4c7f73367501b766))
+
+### Bug Fixes
+
+* scroll in home ([aa0597d](https://github.com/Naroh091/hermes-war-room/commit/aa0597d6aad1a8c46989ecc54d554104e34b8f74))
+
+### Refactoring
+
+* rename nav, fit more agents ([5b14d96](https://github.com/Naroh091/hermes-war-room/commit/5b14d962404091f53731938d37f16139889f8002))
+
 ## [1.1.1](https://github.com/Naroh091/hermes-war-room/compare/v1.1.0...v1.1.1) (2026-05-03)
 
 ### Bug Fixes
